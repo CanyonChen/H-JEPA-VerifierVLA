@@ -1,6 +1,6 @@
 from torch import nn
 
-from models.module import MLP
+from .module import MLP
 
 
 def build_prober(*, input_dim, output_dim: int) -> nn.Module:

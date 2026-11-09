@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from loss import init_module_weights
+from h_jepa.loss import init_module_weights
 
 from ..module import MLP
 

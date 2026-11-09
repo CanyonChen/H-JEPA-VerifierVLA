@@ -5,7 +5,7 @@ import torch
 from torch.nn import functional as F
 import torch.nn as nn
 
-from loss import init_module_weights
+from h_jepa.loss import init_module_weights
 
 
 def build_projector(projector_cfg, *, input_dim: int, output_dim: int) -> nn.Module:

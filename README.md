@@ -6,7 +6,7 @@
 
 ## 当前状态
 
-截至 2026-11-09，研究计划与本地源码准备已完成；尚未安装运行依赖、下载模型权重或执行本项目的推理、训练与评测。联合验证模型尚待实现。
+截至 2026-11-09，研究计划与本地源码准备已完成，已提供三者共享的 uv 模型环境；服务器依赖安装、检查点推理、训练与评测待执行。联合验证模型尚待实现。
 
 - `openpi/` 导入自上游提交 `215abfb217dbac7d5f1273282331b9b1866c0479`，作为本仓库的普通源码目录管理。
 - `openpi/third_party/` 包含 ALOHA 与 LIBERO 的完整源码，导入版本分别为 `d1dc83afd89ded4379851257fe5d85632d31d5ec`、`f78abd68ee283de9f9be3c8f7e2a9ad60246e95c`。三者内部的 Git 元数据已移除。
@@ -18,6 +18,7 @@
 | --- | --- |
 | 研究目标、假设与 P0–P5 实验路线 | [长程动作验证实验计划](docs/plan.md) |
 | π₀.₅ 检查点、环境、启动命令与评测协议 | [第一阶段 baseline 复现计划](docs/i_baseline.md) |
+| 统一 uv 模型环境、安装与兼容性验证 | [环境配置](docs/environment.md) |
 | H-JEPA 中英双语论文 | [H-JEPA.md](H-JEPA/paper-latex/H-JEPA.md) |
 | H-JEPA 代码与运行说明 | [上游代码 README](H-JEPA/repository-main/README.md) |
 | H-JEPA 方法讲解幻灯片 | [deck.html](H-JEPA/repo/deck.html) |
@@ -39,7 +40,8 @@ HTML 页面需克隆到本地后用浏览器打开，并保留配套素材的相
 │   └── repository-main/         H-JEPA 上游代码快照
 ├── VeriVLA/
 │   ├── paper/                   论文源码、双语 Markdown 与图表
-│   └── repo/                    中文交互报告与验证器演示
+│   ├── repo/                    中文交互报告与验证器演示
+│   └── repository/              固定版本 VeriVLA 模型源码
 └── openpi/                      官方基础策略源码快照，含 ALOHA / LIBERO
 ```
 
@@ -59,6 +61,17 @@ git pull --ff-only
 ```
 
 openpi、ALOHA 与 LIBERO 随本仓库一起更新，无需单独初始化子模块。环境配置与运行命令见 [baseline 计划](docs/i_baseline.md)；计划中的命令面向 Linux GPU 服务器，需按实际环境设置缓存路径。
+
+## 配置模型环境
+
+在 Linux 服务器的项目根目录执行：
+
+```bash
+bash scripts/setup_model_env.sh
+source .venv/bin/activate
+```
+
+统一使用 Python 3.11.13、PyTorch 2.7.1 和根目录 `uv.lock`。该环境包含 openpi、H-JEPA 模型核心与 VeriVLA 模型；兼容范围、验证记录和 GPU 检查命令见 [环境配置](docs/environment.md)。
 
 ## 实验路线
 
