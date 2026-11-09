@@ -37,7 +37,7 @@ bash scripts/setup_model_env.sh
 source .venv/bin/activate
 ```
 
-脚本从根目录执行 `uv sync --locked`，创建 `.venv/`、安装锁定依赖，随后执行 `uv pip check` 和 CPU 模型检查。`GIT_LFS_SKIP_SMUDGE=1` 遵循 openpi 的 LeRobot 安装要求；`env -u PYTHONPATH` 防止已有 ROS / 其他项目路径混入本次安装和检查。
+脚本从根目录执行 `uv sync --locked`，创建 `.venv/`、安装锁定依赖，随后执行 `uv pip check` 和 CPU 模型检查。安装命令设置 `UV_PYTHON_DOWNLOADS=automatic`，在缺少 `.python-version` 指定的 Python 3.11.13 时自动下载，覆盖服务器的 `never` 下载设置；该设置仅对本次安装命令生效。`GIT_LFS_SKIP_SMUDGE=1` 遵循 openpi 的 LeRobot 安装要求；`env -u PYTHONPATH` 防止已有 ROS / 其他项目路径混入本次安装和检查。
 
 模型环境统一在根目录管理。后续从根目录使用 `uv run --locked ...` 或激活 `.venv/` 后使用 `python ...`；在 `openpi/` 子目录执行其自己的 `uv sync` 会转为管理另一套项目环境。
 
