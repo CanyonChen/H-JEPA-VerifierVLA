@@ -1,0 +1,22 @@
+﻿[
+    {
+        "Algorithm":  "SHA256",
+        "Hash":  "2E396E67291364E24C3429534E3B36846D57A11066EB6C3DA4A3BF838A9FC042",
+        "Path":  "D:\\Users\\SXF-Admin\\Desktop\\docs\\H-JEPA\\paper-latex\\main_release.tex"
+    },
+    {
+        "Algorithm":  "SHA256",
+        "Hash":  "04DCCBE417774E3DC628D16340962E922453FF5FD80F90BE4F8EFEF4EC89CF9E",
+        "Path":  "D:\\Users\\SXF-Admin\\Desktop\\docs\\H-JEPA\\paper-latex\\H-JEPA.md"
+    },
+    {
+        "Algorithm":  "SHA256",
+        "Hash":  "A4ACD4EBAEEBD4C7271171E4EAA0ADE654B66C38B80B471B5E5B4D657B0D34AD",
+        "Path":  "D:\\Users\\SXF-Admin\\Desktop\\docs\\H-JEPA\\repository-main\\README.md"
+    },
+    {
+        "Algorithm":  "SHA256",
+        "Hash":  "FC6B8B1C04D7F2809BCB44815BC9188A29488EBBC2F0F8E1C175D1E3F8F5E0EB",
+        "Path":  "D:\\Users\\SXF-Admin\\Desktop\\docs\\H-JEPA\\reading\\paper\\paper.pdf"
+    }
+]

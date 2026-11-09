@@ -1,0 +1,10 @@
+{
+  "slides": 14,
+  "focus": "method",
+  "assets": {
+    "training.png": "paper-latex/figures/hjepa_training.png",
+    "planning.png": "paper-latex/figures/hierarchical_planning.png"
+  },
+  "external_runtime_dependencies": [],
+  "source_snapshot": "user-provided local LaTeX and repository"
+}

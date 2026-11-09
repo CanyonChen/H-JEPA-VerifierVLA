@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1480" height="800" viewBox="0 0 1480 800" role="img" aria-labelledby="verifier-title verifier-desc" xml:lang="en">
+  <title id="verifier-title">Latent World Model Verifier: autoregressive rollout</title>
+  <desc id="verifier-desc">Redrawn from VeriVLA Figure 3(b). One shared, trainable predictor receives robot state and action embeddings and visual latents. The frozen V-JEPA 2 encoder supplies the initial latent from the current observation. For each action sub-chunk, the predictor first predicts the next visual latent and then delta progress. Dashed green arrows feed each predicted latent into the next sub-chunk of the same candidate. The first three sub-chunks are shown; rollout continues to M. A task-specific learnable query reads permitted state, action and visual context for progress estimation, while attention masking prevents task-query information from entering latent prediction. Sum all M progress increments for each candidate, compare the K candidate scores, and execute the selected action chunk.</desc>
+  <defs>
+    <marker id="wm-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M1 1L9 5L1 9Z" fill="#667168"/></marker>
+    <marker id="wm-latent-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1L9 5L1 9Z" fill="#527749"/></marker>
+    <marker id="wm-progress-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M1 1L9 5L1 9Z" fill="#4d6fa7"/></marker>
+    <style>
+      text{font-family:"Segoe UI","Microsoft YaHei",sans-serif;fill:#252d27;font-size:22px}
+      .wm-title{font-size:32px;font-weight:600;letter-spacing:-.5px}
+      .wm-heading{font-size:24px;font-weight:600}
+      .wm-small{font-size:19px;fill:#636e63}
+      .wm-label{font-size:21px;fill:#505c51}
+      .wm-math{font-family:"Cambria Math",Georgia,serif;font-size:29px}
+      .wm-green{fill:#42653c}
+      .wm-blue{fill:#3e6096}
+      .wm-state{fill:#f0b2a6;stroke:#c7897d;stroke-width:1.5}
+      .wm-action{fill:#efda88;stroke:#c2ab59;stroke-width:1.5}
+      .wm-latent{fill:#d0e1c8;stroke:#8fa685;stroke-width:1.5}
+      .wm-progress{fill:#dce6f6;stroke:#7b98c3;stroke-width:1.5}
+      .wm-edge{fill:none;stroke:#667168;stroke-width:2;marker-end:url(#wm-arrow)}
+      .wm-feedback{fill:none;stroke:#527749;stroke-width:3;stroke-dasharray:9 7;marker-end:url(#wm-latent-arrow)}
+      .wm-score-edge{fill:none;stroke:#4d6fa7;stroke-width:2;marker-end:url(#wm-progress-arrow)}
+      .wm-halo{paint-order:stroke;stroke:#e4eef8;stroke-width:7;stroke-linejoin:round}
+    </style>
+  </defs>
+  <rect width="1480" height="800" fill="#fff"/>
+  <text x="40" y="49" class="wm-title">Latent World Model Verifier</text>
+  <text x="40" y="83" class="wm-small">Figure 3(b), unfolded: one candidate i · first three sub-chunks shown · rollout continues to M</text>
+  <line x1="40" y1="108" x2="1440" y2="108" stroke="#dce1d8"/>
+
+  <text x="340" y="153" text-anchor="middle" class="wm-heading">Sub-chunk 1</text>
+  <text x="645" y="153" text-anchor="middle" class="wm-heading">Sub-chunk 2</text>
+  <text x="950" y="153" text-anchor="middle" class="wm-heading">Sub-chunk 3</text>
+  <text x="1320" y="153" text-anchor="middle" class="wm-heading">Candidate selection</text>
+
+  <path d="M450 222V190H1320V296" class="wm-score-edge"/>
+  <path d="M755 222V190M1060 222V190" fill="none" stroke="#4d6fa7" stroke-width="2"/>
+  <circle cx="755" cy="190" r="3" fill="#4d6fa7"/>
+  <circle cx="1060" cy="190" r="3" fill="#4d6fa7"/>
+  <text x="1334" y="235" class="wm-small wm-blue">Sum all M</text>
+  <text x="1334" y="261" class="wm-small wm-blue">increments</text>
+
+  <rect x="60" y="296" width="1080" height="146" rx="10" fill="#e4eef8" stroke="#a0b8d1" stroke-width="1.5"/>
+  <text x="590" y="340" text-anchor="middle" style="font-size:36px;font-weight:600">Predictor</text>
+  <text x="590" y="364" text-anchor="middle" class="wm-small">shared weights</text>
+  <rect x="988" y="313" width="132" height="30" rx="4" fill="#f6f9fc" stroke="#a0b8d1"/>
+  <text x="1054" y="335" text-anchor="middle" class="wm-small" style="fill:#3d5872">Trainable</text>
+  <text x="82" y="419" class="wm-small" style="fill:#3d5872">Action-conditioned · autoregressive</text>
+  <text x="1120" y="419" text-anchor="end" class="wm-small" style="fill:#3d5872">… continue to M</text>
+
+  <path d="M130 480V442M240 480V442M340 480V442M545 480V442M645 480V442M850 480V442M950 480V442" class="wm-edge"/>
+  <path d="M340 296V268M645 296V268M950 296V268" class="wm-edge"/>
+  <path d="M450 296V268M755 296V268M1060 296V268" class="wm-score-edge"/>
+  <text x="60" y="250" class="wm-label">Outputs</text>
+  <text x="60" y="472" class="wm-small">Inputs</text>
+
+  <path d="M340 268C340 330 645 370 645 480" class="wm-feedback"/>
+  <path d="M645 268C645 330 950 370 950 480" class="wm-feedback"/>
+  <text x="427" y="343" class="wm-small wm-green wm-halo">reuse ẑ₁</text>
+  <text x="732" y="343" class="wm-small wm-green wm-halo">reuse ẑ₂</text>
+
+  <rect x="300" y="222" width="80" height="46" rx="20" class="wm-latent"/>
+  <text x="340" y="254" text-anchor="middle" class="wm-math wm-green">ẑ₁</text>
+  <rect x="410" y="222" width="80" height="46" rx="20" class="wm-progress"/>
+  <text x="450" y="254" text-anchor="middle" class="wm-math wm-blue">Δp̂₁</text>
+  <rect x="605" y="222" width="80" height="46" rx="20" class="wm-latent"/>
+  <text x="645" y="254" text-anchor="middle" class="wm-math wm-green">ẑ₂</text>
+  <rect x="715" y="222" width="80" height="46" rx="20" class="wm-progress"/>
+  <text x="755" y="254" text-anchor="middle" class="wm-math wm-blue">Δp̂₂</text>
+  <rect x="910" y="222" width="80" height="46" rx="20" class="wm-latent"/>
+  <text x="950" y="254" text-anchor="middle" class="wm-math wm-green">ẑ₃</text>
+  <rect x="1020" y="222" width="80" height="46" rx="20" class="wm-progress"/>
+  <text x="1060" y="254" text-anchor="middle" class="wm-math wm-blue">Δp̂₃</text>
+  <text x="1130" y="252" text-anchor="middle" style="font-size:30px;fill:#637083">…</text>
+
+  <rect x="90" y="480" width="80" height="46" rx="20" class="wm-state"/>
+  <text x="130" y="512" text-anchor="middle" class="wm-math">sₜ</text>
+  <text x="130" y="552" text-anchor="middle" class="wm-label">state</text>
+  <rect x="200" y="480" width="80" height="46" rx="20" class="wm-action"/>
+  <text x="240" y="512" text-anchor="middle" class="wm-math">A₁</text>
+  <text x="240" y="552" text-anchor="middle" class="wm-label">action</text>
+  <rect x="300" y="480" width="80" height="46" rx="20" class="wm-latent"/>
+  <text x="340" y="512" text-anchor="middle" class="wm-math wm-green">z₀</text>
+  <text x="392" y="510" class="wm-small wm-green">= zₜ</text>
+  <rect x="505" y="480" width="80" height="46" rx="20" class="wm-action"/>
+  <text x="545" y="512" text-anchor="middle" class="wm-math">A₂</text>
+  <text x="545" y="552" text-anchor="middle" class="wm-label">action</text>
+  <rect x="605" y="480" width="80" height="46" rx="20" class="wm-latent"/>
+  <text x="645" y="512" text-anchor="middle" class="wm-math wm-green">ẑ₁</text>
+  <text x="645" y="552" text-anchor="middle" class="wm-label">predicted</text>
+  <rect x="810" y="480" width="80" height="46" rx="20" class="wm-action"/>
+  <text x="850" y="512" text-anchor="middle" class="wm-math">A₃</text>
+  <text x="850" y="552" text-anchor="middle" class="wm-label">action</text>
+  <rect x="910" y="480" width="80" height="46" rx="20" class="wm-latent"/>
+  <text x="950" y="512" text-anchor="middle" class="wm-math wm-green">ẑ₂</text>
+  <text x="950" y="552" text-anchor="middle" class="wm-label">predicted</text>
+
+  <path d="M340 594V526" class="wm-edge"/>
+  <text x="356" y="571" class="wm-small">encode</text>
+  <rect x="230" y="594" width="220" height="62" rx="5" fill="#f1f3ee" stroke="#a0aa9b" stroke-width="1.5"/>
+  <text x="247" y="619" class="wm-heading">Visual encoder</text>
+  <text x="247" y="644" class="wm-small">V-JEPA 2 · frozen</text>
+  <path d="M340 697V656" class="wm-edge"/>
+  <rect x="230" y="697" width="220" height="43" rx="5" fill="#fff" stroke="#a0aa9b" stroke-width="1.5"/>
+  <text x="340" y="725" text-anchor="middle">Observation oₜ</text>
+
+  <line x1="515" y1="594" x2="1135" y2="594" stroke="#dce1d8"/>
+  <text x="515" y="625" class="wm-heading">Latent first, then delta progress</text>
+  <text x="515" y="659" class="wm-small">Task query q<tspan baseline-shift="sub" font-size="14">ℓ</tspan> reads permitted state, action and visual context.</text>
+  <text x="515" y="689" class="wm-small">Attention masking keeps task-query information out of</text>
+  <text x="515" y="716" class="wm-small">latent prediction, including later sub-chunks.</text>
+
+  <rect x="1200" y="296" width="240" height="112" rx="6" fill="#edf2fa" stroke="#7b98c3" stroke-width="1.5"/>
+  <text x="1220" y="330" class="wm-heading" style="font-size:22px">Cumulative progress</text>
+  <text x="1220" y="376" class="wm-math wm-blue">Sᵢ = ∑ₘ Δp̂ₘ⁽ⁱ⁾</text>
+  <path d="M1320 408V480" class="wm-score-edge"/>
+  <text x="1334" y="440" class="wm-small wm-blue">Compare</text>
+  <text x="1334" y="466" class="wm-small wm-blue">K scores</text>
+  <rect x="1200" y="480" width="240" height="120" rx="6" fill="#eef3e9" stroke="#8fa685" stroke-width="1.5"/>
+  <text x="1220" y="515" class="wm-heading">Select candidate</text>
+  <text x="1220" y="558" class="wm-math wm-green" style="font-size:27px">i* = arg maxᵢ Sᵢ</text>
+  <text x="1220" y="584" class="wm-small">Execute selected chunk</text>
+  <text x="1200" y="651" class="wm-small">The same verifier scores</text>
+  <text x="1200" y="678" class="wm-small">every candidate.</text>
+
+  <line x1="40" y1="759" x2="1440" y2="759" stroke="#dce1d8"/>
+  <text x="40" y="787" class="wm-small">State/action tokens denote encoded embeddings. z₀ = zₜ; ẑₘ denotes the predicted latent at t + mH/M.</text>
+</svg>

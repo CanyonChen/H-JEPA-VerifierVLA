@@ -1,0 +1,113 @@
+{
+  "total": 14,
+  "pages": [
+    {
+      "title": "H-JEPA 的层级世界模型",
+      "section": "层级编码",
+      "overflow": [],
+      "auxiliaryText": 0,
+      "missingImages": []
+    },
+    {
+      "title": "Ant 的状态向量是256 + 128",
+      "section": "层级编码",
+      "overflow": [],
+      "auxiliaryText": 0,
+      "missingImages": []
+    },
+    {
+      "title": "状态逐点编码，时间步长逐层翻倍",
+      "section": "层级编码",
+      "overflow": [],
+      "auxiliaryText": 0,
+      "missingImages": []
+    },
+    {
+      "title": "动作汇总覆盖完整的时间间隔",
+      "section": "层级编码",
+      "overflow": [],
+      "auxiliaryText": 0,
+      "missingImages": []
+    },
+    {
+      "title": "预测未来状态，对齐真实未来的编码",
+      "section": "训练目标",
+      "overflow": [],
+      "auxiliaryText": 0,
+      "missingImages": []
+    },
+    {
+      "title": "SIGReg 防止状态表征坍塌",
+      "section": "训练目标",
+      "overflow": [],
+      "auxiliaryText": 0,
+      "missingImages": []
+    },
+    {
+      "title": "各层联合训练，高层梯度传回低层",
+      "section": "训练目标",
+      "overflow": [],
+      "auxiliaryText": 0,
+      "missingImages": []
+    },
+    {
+      "title": "DROID 用逆动力学保留运动信息",
+      "section": "训练目标",
+      "overflow": [],
+      "auxiliaryText": 0,
+      "missingImages": []
+    },
+    {
+      "title": "高层的预测状态，成为低层子目标",
+      "section": "层级规划",
+      "overflow": [],
+      "auxiliaryText": 0,
+      "missingImages": []
+    },
+    {
+      "title": "在世界模型中迭代优化动作",
+      "section": "层级规划",
+      "overflow": [],
+      "auxiliaryText": 0,
+      "missingImages": []
+    },
+    {
+      "title": "Ant 初轮按 5 / 2 / 2 步逐层规划",
+      "section": "层级规划",
+      "overflow": [],
+      "auxiliaryText": 0,
+      "missingImages": []
+    },
+    {
+      "title": "在同一层空间比较预测与子目标",
+      "section": "层级规划",
+      "overflow": [],
+      "auxiliaryText": 0,
+      "missingImages": []
+    },
+    {
+      "title": "把宏动作规划落实为原始控制",
+      "section": "层级规划",
+      "overflow": [],
+      "auxiliaryText": 0,
+      "missingImages": []
+    },
+    {
+      "title": "执行后重新观察，再次规划",
+      "section": "闭环执行",
+      "overflow": [],
+      "auxiliaryText": 0,
+      "missingImages": []
+    }
+  ],
+  "errors": [],
+  "navigation": {
+    "home": "#1",
+    "next": "#2",
+    "end": "#14",
+    "nav": true
+  },
+  "idleHudText": "",
+  "remoteRuntimeResources": [],
+  "passed": true
+}

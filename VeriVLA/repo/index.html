@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f4ef">
+  <meta name="description" content="VeriVLA 中文交互解读：从动作采样、双轴触发器到潜在世界模型验证，理解方法、实验和适用边界。">
+  <title>VeriVLA · 在行动前，多想一步</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到报告正文</a>
+  <div class="reading-progress" aria-hidden="true"><span id="reading-progress"></span></div>
+  <aside class="sidebar" aria-label="报告目录">
+    <a class="brand" href="#overview" aria-label="VeriVLA 报告首页"><span class="brand-mark">V<span>·</span></span><span>RESEARCH<br>FIELDNOTES</span></a>
+    <div class="sidebar-label">论文解读 / NO. 001</div>
+    <nav class="toc">
+      <a href="#overview" class="active"><span>00</span> 核心直觉</a>
+      <a href="#sampling"><span>01</span> 从采样到选择</a>
+      <a href="#trigger"><span>02</span> 双轴触发器 <i></i></a>
+      <a href="#verifier"><span>03</span> 想象未来，再评分</a>
+      <a href="#training"><span>04</span> 验证器如何学习</a>
+      <a href="#evidence"><span>05</span> 实验与证据</a>
+      <a href="#latency"><span>06</span> 多想一步的成本</a>
+      <a href="#perspective"><span>07</span> 贡献与边界</a>
+      <a href="#sources"><span>08</span> 来源与延伸</a>
+    </nav>
+    <div class="sidebar-bottom"><div class="online-dot"></div>中文交互解读<span>基于论文 v1 · 2026.10</span><button class="text-button print-button" type="button">打印 / 保存 PDF <span>↗</span></button></div>
+  </aside>
+
+  <main id="main">
+    <header class="topbar"><span>VISION · LANGUAGE · ACTION</span><div><span class="edition">阅读约 12 分钟</span><a href="https://shirley430316.github.io/projects/verivla/" target="_blank" rel="noopener noreferrer">项目官网 ↗</a><a href="https://arxiv.org/abs/2610.21985" target="_blank" rel="noopener noreferrer">论文 ↗</a></div></header>
+
+    <section id="overview" class="hero section">
+      <div class="eyebrow"><span class="small-dot"></span> PAPER EXPLAINED <span class="eyebrow-rule"></span> HKU · OCT 2026</div>
+      <div class="hero-grid">
+        <div class="hero-copy"><p class="paper-name">VeriVLA<span>v1</span></p><h1>在行动前，<br>多想<span class="accent">一步。</span></h1><p class="hero-description">让潜在世界模型预判动作后果，<br>把 VLA 的随机性，变成可以选择的机会。</p><div class="hero-actions"><a class="button primary" href="#trigger">探索双轴触发器 <span>↗</span></a><a class="quiet-link" href="#sampling">从核心直觉开始 ↓</a></div></div>
+        <div class="hero-visual" aria-label="多个候选动作通向不同结果，验证器选择预测进度更大的方案。概念示意，非实测轨迹。">
+          <div class="visual-caption"><span>ONE STATE. MULTIPLE FUTURES.</span><span class="live-label">概念示意</span></div>
+          <svg class="trajectory-art" viewBox="0 0 500 350" role="img" aria-labelledby="trajectory-title"><title id="trajectory-title">从同一个当前状态出发，比较多个候选动作的预测结果</title><defs><pattern id="dot-grid" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#dddcd5"/></pattern></defs><rect width="500" height="350" fill="url(#dot-grid)"/><path class="trajectory faded" d="M65 250 C145 250 155 80 265 95 S355 115 420 66"/><path class="trajectory faded" d="M65 250 C160 260 180 125 280 165 S360 220 420 180"/><path class="trajectory faded" d="M65 250 C180 260 225 280 300 265 S375 265 420 288"/><path class="trajectory selected" d="M65 250 C145 250 180 210 240 210 S350 80 420 115"/><circle cx="65" cy="250" r="12" fill="#262d28"/><circle cx="65" cy="250" r="20" fill="none" stroke="#262d28" stroke-opacity=".15"/><circle cx="420" cy="66" r="5" fill="#b6bbb6"/><circle cx="420" cy="180" r="5" fill="#b6bbb6"/><circle cx="420" cy="288" r="5" fill="#b6bbb6"/><circle cx="420" cy="115" r="9" fill="#d84c35"/><circle cx="420" cy="115" r="19" fill="none" stroke="#d84c35" stroke-opacity=".2"/><path d="m412 115 5 5 10-11" stroke="white" stroke-width="2" fill="none"/><text x="30" y="295" class="svg-label">当前状态</text><text x="278" y="62" class="svg-label accent-fill">预测进度更大的候选</text><path d="M366 69 405 100" stroke="#d84c35" fill="none"/><rect x="184" y="276" width="131" height="35" rx="3" fill="#f5f4ef" stroke="#d8dbd4"/><text x="200" y="298" class="svg-label">latent world model</text></svg>
+          <div class="visual-footer"><span><i class="legend-line muted"></i> 候选方案</span><span><i class="legend-line coral"></i> 选中执行</span><span>10 → 1</span></div>
+        </div>
+      </div>
+      <p class="full-title">Adaptive Test-Time Verification for Flow-Based VLAs with Latent World Models</p>
+      <p class="authors">Xueli Sun · Yuxiang Lu · Yantong Liu · Xianzhe Fan · Xi Chen · Zhe Liu · Hengshuang Zhao <span>The University of Hong Kong</span></p>
+      <div class="hero-metrics"><div><strong>+14.7<span>pp</span></strong><p>真实机器人平均完成得分提升</p></div><div><strong>2 <span>→</span> 10</strong><p>初始候选 → 触发后的候选总数</p></div><div><strong>326<span>ms</span></strong><p>触发后额外采样与验证开销</p></div><div><strong class="word-metric">Latent</strong><p>在特征空间预测，不重建像素</p></div></div>
+      <p class="fine-print">真实任务指标为分阶段完成得分；326 ms 不含每次决策额外的 14 ms 触发开销。数据：论文表 1、附录表 9。</p>
+    </section>
+
+    <section id="sampling" class="section">
+      <div class="section-heading"><span class="section-number">01 / THE IDEA</span><h2>同一个场景，<br>可以有不同的下一步。</h2></div>
+      <div class="two-column prose-grid"><div><p class="lead">基础 VLA 往往生成一个动作块就执行。可在插笔、移液这类精细操作中，一次偏差就可能打断整个任务。</p><p>Flow Matching 策略从随机噪声生成动作。同样的图像、指令与机器人状态，换一份噪声，就可能得到另一段候选动作。VeriVLA 利用这些候选之间的差异，在执行前进行比较。</p></div><div class="definition"><span class="tiny-label">先理解「采样」</span><h3>一次采样 = 一整段候选动作</h3><p>候选先在计算机中生成。机器人最终只执行选中的一段，其余方案的后果由世界模型预测。</p><div class="formula compact">A<sup>(i)</sup> ∈ ℝ<sup>H × dₐ</sup></div><p class="fine-print">K 是候选数；H 是每段动作的时间步数；dₐ 是单步动作维度。Flow 内部积分步数是另一个维度。</p></div></div>
+      <div class="flow-strip" aria-label="方法流程"><div><span>01</span><h3>先生成 2 个候选</h3><p>相同条件，不同随机噪声</p></div><b aria-hidden="true">→</b><div><span>02</span><h3>判断是否值得验证</h3><p>检查时间变化与跨样本分歧</p></div><b aria-hidden="true">→</b><div><span>03</span><h3>触发后扩展到 10 个</h3><p>世界模型预测未来与进度</p></div><b aria-hidden="true">→</b><div><span>04</span><h3>选择一个执行</h3><p>累计预测进度增量最大</p></div></div>
+      <div class="margin-note"><span>未触发时</span><p>直接执行第一个候选。两个样本是决策的起点，完整验证只在需要时启动。</p></div>
+      <figure class="paper-figure"><button class="figure-button" data-figure="assets/figures/method.png" data-caption="论文图 3 · VeriVLA 整体方法：双轴触发、潜在世界模型验证器与注意力掩码。" aria-label="放大论文整体方法图"><img src="assets/figures/method.png" alt="论文整体方法图：双轴触发器决定是否重复采样，JEPA 预测器生成潜在状态和进度增量，注意力掩码隔离任务信息。" loading="lazy"><span class="zoom-hint">放大原图 ↗</span></button><figcaption><span>FIG. 03 / 原论文</span> 完整流程。雪花标识冻结模块，火焰标识训练模块。<a href="#ref-method">[1]</a></figcaption></figure>
+    </section>
+
+    <section id="trigger" class="section trigger-section">
+      <div class="section-heading"><span class="section-number">02 / WHEN TO THINK</span><h2>两个方向，<br>发现值得多想的时刻。</h2><p>一个轴看方案内部的变化，另一个轴看方案之间的分歧。</p></div>
+      <div class="axis-explainer"><div class="axis-copy"><span class="axis-tag">沿时间轴 →</span><h3>这个方案的动作变化大吗？</h3><p>比较一个动作块内相邻时间步的动作。接触、姿态调整等复杂操作，往往出现更明显的变化。</p></div><div class="matrix" aria-label="两个样本、四个未来动作时间步的示意"><div class="matrix-top">未来动作时间 →</div><div class="matrix-row"><span>样本 1</span><b>aₜ¹</b><b>aₜ₊₁¹</b><b>…</b><b>aₜ₊H₋₁¹</b></div><div class="matrix-row"><span>样本 2</span><b>aₜ²</b><b>aₜ₊₁²</b><b>…</b><b>aₜ₊H₋₁²</b></div><div class="matrix-bottom">k × H × dₐ · 每个格子是一条动作向量</div></div><div class="axis-copy"><span class="axis-tag green">沿样本轴 ↓</span><h3>不同方案的意见一致吗？</h3><p>比较不同候选在同一未来时刻的动作。分歧越大，额外采样越可能提供不同的可选方案。</p></div></div>
+
+      <div class="interactive-lab">
+        <div class="lab-header"><span class="tiny-label"><i class="small-dot"></i> INTERACTIVE LAB</span><span class="demo-badge">教学示例 · 非论文实测</span></div>
+        <div class="lab-title"><h3>拖动滑块，看看何时触发。</h3><p>输入已校准的两个百分位。橙色区域满足任意一个轴超过阈值。</p></div>
+        <div class="presets" aria-label="触发场景预设"><button type="button" data-preset="calm">平稳且一致</button><button type="button" data-preset="temporal" class="selected" aria-pressed="true">时间变化大</button><button type="button" data-preset="cross">候选分歧大</button><button type="button" data-preset="both">两个轴都高</button></div>
+        <div class="lab-grid"><div class="trigger-plot"><svg id="trigger-svg" viewBox="0 0 440 355" role="img" aria-labelledby="trigger-plot-title"><title id="trigger-plot-title">双轴触发规则：横轴为时间百分位，纵轴为跨样本百分位；任意一项超过阈值即触发。</title><rect x="55" y="20" width="340" height="270" rx="2" fill="#f0f3ed"/><g stroke="#dde2d9" stroke-width="1"><path d="M55 74H395M55 128H395M55 182H395M55 236H395M123 20V290M191 20V290M259 20V290M327 20V290"/></g><path id="trigger-region" fill="#d84c35" fill-opacity=".13" d="M55 20H395V290H361V47H55Z"/><path id="threshold-lines" d="M55 47H395M361 20V290" stroke="#d84c35" stroke-width="1.5" stroke-dasharray="5 5"/><path d="M55 20V290H395" fill="none" stroke="#a2aca0"/><text x="49" y="310" class="chart-tick">0</text><text x="385" y="310" class="chart-tick">1.0</text><text x="24" y="26" class="chart-tick">1.0</text><text x="13" y="188" transform="rotate(-90 13 188)" class="chart-axis">跨样本百分位 τcross</text><text x="151" y="344" class="chart-axis">时间百分位 τtemp</text><text x="84" y="257" class="plot-region-label">直接执行初始候选</text><circle id="trigger-point-halo" cx="371.2" cy="182" r="15" fill="#d84c35" fill-opacity=".12"/><circle id="trigger-point" cx="371.2" cy="182" r="6" fill="#d84c35" stroke="white" stroke-width="2"/><text id="trigger-point-label" x="284" y="164" class="point-label">(0.93, 0.40)</text></svg></div>
+          <div class="lab-controls"><label class="range-label" for="temporal-range"><span>时间轴百分位 <small>τtemp</small></span><output id="temporal-value" for="temporal-range">0.93</output></label><input id="temporal-range" type="range" min="0" max="100" value="93" step="1"><label class="range-label" for="cross-range"><span>样本轴百分位 <small>τcross</small></span><output id="cross-value" for="cross-range">0.40</output></label><input id="cross-range" type="range" min="0" max="100" value="40" step="1"><label class="range-label" for="threshold-range"><span>触发阈值 <small>τ₀</small></span><output id="threshold-value" for="threshold-range">0.90</output></label><input id="threshold-range" type="range" min="0" max="100" value="90" step="1"><div class="trigger-decision" id="trigger-decision" role="status" aria-live="polite"><div><span class="decision-dot"></span><strong id="decision-title">启动验证</strong><span id="decision-budget">2 → 10 个候选</span></div><p id="decision-detail">max(0.93, 0.40) = 0.93 &gt; 0.90</p></div></div></div>
+        <p class="lab-footnote">这里的 0.93 表示当前统计量超过参考集中约 93% 的分数。它描述相对位置，不能当作失败概率。示例阈值 0.90 也不表示总触发率恰好是 10%。</p>
+      </div>
+
+      <details class="technical-details"><summary><span><b>把直觉写成公式</b> · 归一化 → 两个统计量 → 百分位 → OR 规则</span><span class="details-plus">+</span></summary><div class="details-body"><p>每个候选先除以自身平均动作幅度 m⁽ⁱ⁾，减弱快速、大幅度运动带来的偏置。论文没有给出 m 的更细实现定义。</p><div class="formula">ã<sup>(i)</sup><sub>t+j</sub> = a<sup>(i)</sup><sub>t+j</sub> / m<sup>(i)</sup></div><div class="equation-row"><span>时间轴</span><div class="formula">T<sub>temp</sub> = <span class="fraction"><span>1</span><span>k(H − 1)</span></span> ∑<sub>i=1</sub><sup>k</sup> ∑<sub>j=1</sub><sup>H−1</sup> ‖ã<sup>(i)</sup><sub>t+j</sub> − ã<sup>(i)</sup><sub>t+j−1</sub>‖²</div></div><div class="equation-row"><span>样本轴</span><div class="formula">T<sub>cross</sub> = <span class="fraction"><span>1</span><span>kH</span></span> ∑<sub>i=1</sub><sup>k</sup> ∑<sub>j=0</sub><sup>H−1</sup> ‖ã<sup>(i)</sup><sub>t+j</sub> − ā̃<sub>t+j</sub>‖²</div></div><p>ā̃ 表示同一时刻在候选之间取均值。k = 2 时，跨样本统计量等于两个候选对应动作平方差的时间平均，再除以 4。</p><p>部署前用少量基础策略运行回合，建立两个经验参考分布 F。部署时分别转换成百分位：</p><div class="formula">τ = max{F<sub>temp</sub>(T<sub>temp</sub>), F<sub>cross</sub>(T<sub>cross</sub>)} &gt; τ₀</div><p class="fine-print">严格大于阈值才触发。触发器无需训练网络参数，但仍需要环境校准。时间轴是未来动作块的时间，不是 Flow 的积分时间。<a href="#ref-trigger">[2]</a></p></div></details>
+      <div class="insight"><span>读论文时留意</span><p>触发器寻找的是「复杂阶段」与「候选分歧」。它是计算分配的代理信号；两个一致但错误的方案，也可能绕过验证。</p></div>
+    </section>
+
+    <section id="verifier" class="section">
+      <div class="section-heading"><span class="section-number">03 / WHICH ACTION</span><h2>先想象会发生什么，<br>再判断是否有帮助。</h2><p>潜在世界模型把「世界如何变化」和「任务推进多少」连接起来。</p></div>
+      <figure class="paper-figure verifier-figure" id="verifier-architecture">
+        <button class="figure-button" data-figure="assets/figures/verifier-architecture.svg" data-caption="参照论文 Fig. 3(b) 重绘。下方是状态、动作和视觉 latent 输入，中间为同一个共享 Predictor，上方输出未来 latent 与进度增量；绿色虚线将预测 latent 传给下一子块。图中展开同一候选的前 3 个子块，实际继续至 M；累加全部 M 个进度增量，再比较 K 个候选并择优执行。" aria-label="放大参照 Fig. 3(b) 重绘的 Verifier 结构图">
+          <img src="assets/figures/verifier-architecture.svg" width="1480" height="800" alt="参照 Fig. 3(b) 的自回归展开图：冻结的 V-JEPA 2 编码器将当前观测编码为 z0；共享 Predictor 接收状态和动作嵌入，从 A1、z0 预测 z1 和进度增量，再将预测 z1 与 A2 用于下一子块。绿色虚线标出预测 latent 的回传。对每个候选累加 M 个进度增量，选最大分数的动作块。任务 query 参与进度估计，注意力掩码阻止其信息进入各子块的 latent 预测。" loading="lazy">
+          <span class="zoom-hint">放大结构图 ↗</span>
+        </button>
+        <figcaption><span>VERIFIER / 参照 FIG. 3(b) 重绘</span>沿子块展开同一个 Predictor：输入在下、输出在上，绿色虚线将预测 latent 传给下一子块。图中展示前 3 个子块，实际继续至 M（真实机器人配置为 5）；右侧累加全部进度并选择候选。<a href="#ref-method">[1]</a></figcaption>
+      </figure>
+      <div class="two-column prose-grid"><div><h3>为什么在 latent 里验证？</h3><p>评价一个动作，最终需要的是标量判断。像素级世界模型要先生成图像或视频，再从中提取评价信号，既增加延迟，也可能让生成误差传递给评分器。</p><p>VeriVLA 直接在特征空间联合预测未来状态与进度。无需目标图像，也无需将未来特征解码成视频。</p></div><div><h3>为什么还需要任务信息？</h3><p>同一个「关上柜门」的状态转移，对关门任务是正进度，对开门任务是负进度。动力学告诉模型发生了什么，任务 query 决定这种变化的价值。</p><p>注意力掩码阻止潜在状态预测读取任务 query，旨在避免动力学分支利用任务语义走捷径。<a href="#ref-method">[1]</a></p></div></div>
+      <div class="subchunk-panel"><div><span class="tiny-label">M = 5 · 真实机器人配置</span><h3>把一个动作块分成 5 段，累计进度。</h3><p>分段预测在监督密度、推理成本和误差累积之间折中。推理时，下一段依赖模型自己预测的 latent。</p></div><div class="subchunks" aria-label="五个子块的进度相加"><span>Δp̂₁</span><b>+</b><span>Δp̂₂</span><b>+</b><span>Δp̂₃</span><b>+</b><span>Δp̂₄</span><b>+</b><span>Δp̂₅</span></div><div class="selection-formula">选中的候选 i* = arg max<sub>i</sub> ∑<sub>m=1</sub><sup>M</sup> Δp̂<sub>m</sub><sup>(i)</sup></div></div>
+    </section>
+
+    <section id="training" class="section">
+      <div class="section-heading"><span class="section-number">04 / LEARNING TO VERIFY</span><h2>推理时选择，<br>判断能力来自离线训练。</h2></div>
+      <div class="training-layout"><div><p class="lead">「无需训练」描述的是触发器。验证器需要数据与监督，部署时基础策略保持冻结。</p><ol class="training-steps"><li><span>01</span><div><h3>适配基础策略</h3><p>每项任务收集 50 个示范回合，微调 VLA。</p></div></li><li><span>02</span><div><h3>收集策略运行轨迹</h3><p>每项任务再收集 50 个运行回合，形成验证器数据。</p></div></li><li><span>03</span><div><h3>自动标注进度</h3><p>Robometer 估计绝对任务进度；相邻目标时刻做差，得到进度增量标签。</p></div></li><li><span>04</span><div><h3>联合学习预测与排序</h3><p>同一环境的任务共享验证器；训练使用 teacher forcing 与 self-forcing。</p></div></li></ol></div><div class="loss-panel"><span class="tiny-label">TRAINING OBJECTIVE</span><h3>三种信号，训练一个验证器。</h3><div><b>Huber 进度回归</b><p>预测的进度数值接近自动标注目标。</p></div><div><b>同任务成对排序</b><p>推进更多的候选，应该得到更高评分。</p></div><div><b>未来 latent 的 L1 预测</b><p>让模型学习动作如何改变环境特征。</p></div><p class="loss-equation">ℒ = ℒ<sub>prog</sub> + λ<sub>vis</sub> ℒ<sub>vis</sub></p><p class="fine-print">动作条件预测器预训练使用 23k 条 DROID 轨迹；视觉编码器保持冻结。Robometer 提供的是自动进度标签。<a href="#ref-training">[3]</a></p></div></div>
+      <div class="role-strip"><span><b>VLA</b> 提出动作</span><span><b>Trigger</b> 分配计算</span><span><b>Verifier</b> 预测并评分</span><span><b>Robometer</b> 离线标注进度</span></div>
+    </section>
+
+    <section id="evidence" class="section">
+      <div class="section-heading"><span class="section-number">05 / THE EVIDENCE</span><h2>提升在哪里，<br>证据又说明了什么？</h2><p>真实机器人验证实用性，仿真检验多任务表现，消融检验设计是否必要。</p></div>
+      <figure class="paper-figure real-figure"><button class="figure-button" data-figure="assets/figures/real_world.png" data-caption="论文图 4 · AgileX PiperX 双臂平台及插笔、移液、苹果放置三项任务。" aria-label="放大真实机器人实验图"><img src="assets/figures/real_world.png" alt="AgileX PiperX 双臂机器人及插笔、移液、苹果放置三项真实任务" loading="lazy"><span class="zoom-hint">放大原图 ↗</span></button><figcaption><span>FIG. 04 / 原论文</span> 从左至右：机器人平台、插笔、移液、苹果放置。</figcaption></figure>
+      <div class="results-tabs" role="tablist" aria-label="实验环境"><button id="tab-real" role="tab" aria-selected="true" aria-controls="results-panel" data-benchmark="real">真实机器人</button><button id="tab-clean" role="tab" aria-selected="false" tabindex="-1" aria-controls="results-panel" data-benchmark="clean">RoboTwin · Clean</button><button id="tab-random" role="tab" aria-selected="false" tabindex="-1" aria-controls="results-panel" data-benchmark="random">Clean → Random</button><button id="tab-libero" role="tab" aria-selected="false" tabindex="-1" aria-controls="results-panel" data-benchmark="libero">LIBERO</button></div>
+      <div id="results-panel" class="results-panel" role="tabpanel" aria-labelledby="tab-real"><div class="results-top"><div><span id="results-metric" class="tiny-label">平均完成得分 / %</span><h3 id="results-title">精细操作中的提升最直接。</h3><p id="results-note">π₀.₅ 基础策略；3 项任务，每种方法每项任务 50 次试验。按阶段计分，部分完成也能获得分数。</p></div><div class="result-total"><span id="result-baseline">50.8</span><span class="result-arrow">→</span><strong id="result-ours">65.5<span>%</span></strong><small id="result-gain">+14.7 个百分点</small></div></div><div class="chart-legend"><span><i class="baseline-dot"></i> 基础策略</span><span><i class="ours-dot"></i> + VeriVLA</span></div><div id="result-bars" class="result-bars" aria-label="各任务表现对比"></div><p class="chart-scale">柱长以 0–100% 为统一刻度；数据来自论文表 1–3。<a href="#ref-results">[4]</a></p></div>
+      <noscript><p>实验汇总：真实任务完成得分 50.8→65.5；RoboTwin Clean 成功率 66.4→73.6；Clean2Random 62.8→69.6；LIBERO（π₀.₅）96.9→97.6。交互图表需要 JavaScript。</p></noscript>
+      <div class="table-scroll"><table class="summary-table"><caption>主要结果一览 · 保留指标与实验条件</caption><thead><tr><th>设置</th><th>指标</th><th>基础策略</th><th>VeriVLA</th><th>阅读条件</th></tr></thead><tbody><tr><td>真实机器人</td><td>完成得分</td><td>50.8%</td><td>65.5%</td><td>3 项任务，阶段计分</td></tr><tr><td>RoboTwin Clean</td><td>成功率</td><td>66.4%</td><td>73.6%</td><td>5 项任务，始终验证</td></tr><tr><td>Clean2Random</td><td>成功率</td><td>62.8%</td><td>69.6%</td><td>仅 clean 训练，始终验证</td></tr><tr><td>LIBERO · π₀.₅</td><td>成功率</td><td>96.9%</td><td>97.6%</td><td>40 项任务</td></tr><tr><td>LIBERO · StarVLA-GR00T</td><td>成功率</td><td>96.2%</td><td>97.2%</td><td>使用独立的验证器权重</td></tr></tbody></table></div>
+      <div class="ablation"><div><span class="tiny-label">ABLATION / 消融</span><h3>世界建模，<br>确实带来了增益。</h3><p>三组均保留预训练视觉编码器。移除的是未来 latent 预测，或动作预测器的预训练。</p></div><div class="ablation-rows"><div><span>完整 VeriVLA</span><div><i style="width:93.57%"></i></div><strong>65.5</strong></div><div><span>移除预测器预训练</span><div><i style="width:85%"></i></div><strong>59.5</strong></div><div><span>移除世界建模</span><div><i style="width:78.86%"></i></div><strong>55.2</strong></div><p class="fine-print">真实任务平均完成得分（%）；柱长统一以 0–70 为刻度。论文表 4。<a href="#ref-ablation">[5]</a></p></div></div>
+      <div class="insight"><span>证据的分量</span><p>消融支持「动力学预测有助于进度评价」。LIBERO 已接近饱和，平均提升较小；不同环境的指标与基线不同，不能直接用增益大小判断难度。</p></div>
+    </section>
+
+    <section id="latency" class="section">
+      <div class="section-heading"><span class="section-number">06 / THE COST OF THINKING</span><h2>多想一步，<br>需要多少额外时间？</h2><p>论文在一张 RTX 4090 上同时运行策略与验证器，合计显存约 18.5 GB。</p></div>
+      <div class="latency-layout"><div class="latency-list"><div><span><i style="background:#435849"></i>基础 VLA</span><strong>82 <small>ms</small></strong></div><div><span><i style="background:#9caf9d"></i>触发机制额外开销</span><strong>14 <small>ms</small></strong></div><div><span><i style="background:#eab9aa"></i>增加 8 个候选</span><strong>80 <small>ms</small></strong></div><div><span><i style="background:#d84c35"></i>验证全部 10 个候选</span><strong>246 <small>ms</small></strong></div><p>未触发总计 <b>96 ms</b>；触发后总计 <b>422 ms</b>。<br>摘要中的 326 ms = 80 + 246。<a href="#ref-cost">[6]</a></p></div><div class="latency-calculator"><span class="demo-badge">按论文分项时延推算 · 非新实测</span><label class="range-label" for="rate-range"><span>假设触发比例 r</span><output id="rate-value" for="rate-range">30%</output></label><input id="rate-range" type="range" min="0" max="100" value="30" step="1"><div class="latency-total"><strong id="latency-value">193.8</strong><span>ms / 决策<br><small>推算平均延迟</small></span></div><div class="latency-stack" aria-hidden="true"><span id="latency-base"></span><span id="latency-trigger"></span><span id="latency-sample"></span><span id="latency-verify"></span></div><p class="calculator-formula">平均延迟 ≈ 96 + 326 × r</p><p class="fine-print">假设各项开销固定且可按触发比例线性加权。此计算器不预测成功率，也不包含控制系统的其他开销。</p></div></div>
+    </section>
+
+    <section id="perspective" class="section">
+      <div class="section-heading"><span class="section-number">07 / A CRITICAL READING</span><h2>贡献在哪里，<br>边界也在哪里。</h2></div>
+      <div class="contribution-grid"><div><span class="tiny-label">沿用的基础</span><h3>站在已有组件之上</h3><p>Flow-based VLA、重复采样后选优、JEPA / V-JEPA 2、DROID 动力学预训练，以及 Robometer 进度标注，均有已有工作基础。</p></div><div><span class="tiny-label accent">本文推进的设计</span><h3>把预测、评价和计算分配接起来</h3><p>在潜在空间联合预测未来与任务进度；通过任务 query 与掩码组织信息；用动作双轴统计量决定何时启动额外采样和验证。</p></div></div>
+      <div class="limits-columns"><div><span class="source-tag">作者明确提出</span><h3>方法本身的两项限制</h3><article><span>01</span><div><h4>候选池决定上限</h4><p>验证器只能挑选基础策略生成的候选。不同随机种子带来的多样性有限，全部候选都不好时，排序也难以挽回。</p></div></article><article><span>02</span><div><h4>冻结特征可能错过细节</h4><p>视觉编码器没有针对操作进度优化，可能遗漏微小的物体配置、接触或完成状态变化。</p></div></article></div><div><span class="source-tag interpretation">报告解读 · 待进一步验证</span><h3>读完后仍值得追问</h3><ul class="critical-list"><li>Robometer 自动进度标签的误差，会如何影响排序和真实任务表现？</li><li>短期进度增量最大的动作，是否始终有利于长期任务成功？</li><li>任务专属 query 与各策略独立验证器，如何迁移到新任务、新策略？</li><li>三个真实任务与每任务 50 次试验之外，效果能否稳定复现？</li></ul></div></div>
+      <blockquote>世界模型的价值，也可以体现在执行前的一次更好的选择。<cite>本报告的理解：VeriVLA 展示了一条用额外推理计算提升冻结策略表现的路径，其效果依赖候选质量、预测能力和进度评价。</cite></blockquote>
+    </section>
+
+    <section id="sources" class="section sources-section">
+      <div class="section-heading"><span class="section-number">08 / KEEP READING</span><h2>回到原文，继续探索。</h2><p>本报告基于本地论文正文与附录。交互示例为教学设定；实验数值均按原文口径呈现。</p></div>
+      <div class="source-links"><a href="https://arxiv.org/abs/2610.21985" target="_blank" rel="noopener noreferrer"><span>01 / PAPER</span><strong>arXiv 论文</strong><i>↗</i></a><a href="https://shirley430316.github.io/projects/verivla/" target="_blank" rel="noopener noreferrer"><span>02 / PROJECT</span><strong>作者项目官网</strong><i>↗</i></a><a href="sources/VeriVLA.md" download><span>03 / LOCAL SOURCE</span><strong>中英双语原文</strong><i>↓</i></a></div>
+      <ol class="references"><li id="ref-method"><b>[1] 方法与架构</b><span>§3.1–3.2、§3.4，图 3：问题定义、动作选择、潜在预测器与注意力掩码。</span></li><li id="ref-trigger"><b>[2] 双轴触发器</b><span>§3.3，公式 5–7；§4.4、附录 C：归一化、百分位校准、OR 规则及触发评估。</span></li><li id="ref-training"><b>[3] 训练设置</b><span>§3.4、§4.1、§4.3.2、附录 B：损失、数据收集、Robometer 标签、预训练与子块配置。</span></li><li id="ref-results"><b>[4] 实验结果</b><span>表 1–3、附录 D.1：真实任务完成得分、RoboTwin 与 LIBERO 成功率及计分规则。</span></li><li id="ref-ablation"><b>[5] 消融证据</b><span>§4.3、表 4：世界建模和预测器预训练的独立贡献；所有变体保留预训练视觉编码器。</span></li><li id="ref-cost"><b>[6] 推理成本与局限</b><span>附录 D.2、表 9：延迟和显存；§5：作者提出的局限与未来工作。</span></li></ol>
+      <p class="attribution">论文及图像版权归原作者所有。报告中的图 3、图 4 保留原始图像；轨迹示意、交互图与中文解释由本报告整理。独立阅读笔记，非作者官方页面。</p>
+    </section>
+    <footer><a class="footer-brand" href="#overview">VeriVLA<span> / FIELDNOTES</span></a><span>中文论文解读 · 2026.10.26</span><a href="#overview">返回顶部 ↑</a></footer>
+  </main>
+  <dialog id="figure-dialog" aria-label="论文图像预览"><form method="dialog"><button class="dialog-close" aria-label="关闭图像预览">关闭 ×</button></form><img id="dialog-image" alt=""><p id="dialog-caption"></p></dialog>
+</body>
+</html>

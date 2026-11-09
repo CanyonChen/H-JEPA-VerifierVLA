@@ -1,0 +1,66 @@
+# Local credentials and environment settings
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+
+# Python environments, caches and packaging
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.uv-cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+.coverage
+htmlcov/
+
+# Frontend dependencies and local tooling
+node_modules/
+.idea/
+.vscode/
+.codex/
+.claude/
+
+# Downloaded datasets, model weights and experiment outputs
+/data/
+/datasets/
+checkpoints/
+ckpts/
+*.ckpt
+*.pt
+*.pth
+*.safetensors
+outputs/
+multirun/
+runs/
+wandb/
+lightning_logs/
+logs/
+*.log
+
+# LaTeX build intermediates; keep source PDFs and figures
+*.aux
+*.fdb_latexmk
+*.fls
+*.out
+*.synctex.gz
+*.toc
+*.nav
+*.snm
+*.vrb
+*.blg
+
+# OS and temporary files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.tmp
+*.swp
+*~

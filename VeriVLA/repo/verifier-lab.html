@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="用交互预演、张量形状和可计算的注意力矩阵，理解 VeriVLA 的视觉编码器、机器人状态、任务查询与 Transformer。">
+  <title>VeriVLA 交互实验室 · 看懂任务查询与注意力</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/verifier-lab/lab.css">
+  <link rel="stylesheet" href="assets/verifier-lab/vendor/katex/katex.min.css">
+  <script defer src="assets/verifier-lab/vendor/katex/katex.min.js"></script>
+  <script defer src="assets/verifier-lab/vendor/katex/contrib/auto-render.min.js"></script>
+  <script defer src="assets/verifier-lab/vendor/mermaid.min.js"></script>
+  <script defer src="assets/verifier-lab/lab-math.js"></script>
+  <script defer src="assets/verifier-lab/lab.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="#top"><span class="brand-icon">V</span> VeriVLA <span class="muted" style="font-weight:400">/ 交互实验室</span></a>
+    <nav aria-label="章节导航">
+      <a href="#architecture">五个部分</a><a href="#rollout">逐步预演</a><a href="#attention">注意力计算</a><a href="#code">对照代码</a>
+    </nav>
+    <span class="edition">PAPER → TOKENS → CODE</span>
+  </div>
+</header>
+<main id="top" class="wrap">
+  <section class="hero">
+    <div>
+      <div class="eyebrow">A visual guide to latent verification</div>
+      <h1>一次预演，<br>看懂 Verifier。</h1>
+      <p>图像怎样变成特征？红色状态为什么重复？任务查询如何读取动作？<br>先点模块，再走五步，最后亲手算一行注意力。</p>
+    </div>
+    <div class="hero-actions"><span class="tag">精炼交互 · 结合公开源码</span><button class="primary" id="start-demo">播放一次预演 <span aria-hidden="true">↗</span></button><a href="#attention" class="small">直接看 Q / K / V 计算 ↓</a></div>
+  </section>
+
+  <section class="overview" aria-labelledby="overview-title">
+    <div class="overview-title"><h3 id="overview-title">两个顶层对象，一条预测链</h3><span>JEPA 是学习框架；Transformer 是预测器的网络实现。</span></div>
+    <pre class="mermaid">
+flowchart LR
+    O["Image"] --> E["V-JEPA 2 encoder"]
+    E --> P["Transformer<br/>Action / State / Task"]
+    P --> L["Future latent<br/>Delta progress"]
+    L --> S["Rank candidates"]
+    style E fill:#eaf0f8,stroke:#527eaf,color:#345f8b
+    style P fill:#e8eee5,stroke:#6f947b,color:#294e3d
+    style L fill:#e6f1f0,stroke:#6c9d95,color:#326e68
+    style S fill:#e4f1e9,stroke:#7ba58a,color:#326c50
+    </pre>
+  </section>
+  <div class="summary-box" aria-label="核心摘要">
+    <div class="summary-item"><b>01</b><div><strong>先选动作，再执行。</strong>为可重复采样的 VLA 评价候选动作，机器人此时还停在起点。</div></div>
+    <div class="summary-item"><b>02</b><div><strong>预测特征，也预测进度。</strong>一个共享 Transformer，两路输出；任务信息只进入进度路径。</div></div>
+    <div class="summary-item"><b>03</b><div><strong>50.8% → 65.5%。</strong>论文真实任务的平均完成得分。下方动画与注意力数值为教学示例。</div></div>
+  </div>
+
+  <section class="section" id="architecture">
+    <div class="section-head"><div><div class="section-index">01 / FOLLOW THE DATA</div><h2>点一个模块，看它接收什么。</h2><p>五个部分不是五个独立模型。动作编码、任务查询、主干和输出头都在 predictor 里面。</p></div><div class="section-note">尺寸示例：256 × 256 图像，16 × 16 patch；dᵥ = 768，D = 1024。</div></div>
+    <div class="panel architecture-layout">
+      <div class="architecture">
+        <div class="legend arch-legend"><span><i class="dot blue"></i>视觉</span><span><i class="dot amber"></i>动作</span><span><i class="dot red"></i>机器人状态</span><span><i class="dot purple"></i>任务</span><span><i class="dot green"></i>输出</span></div>
+        <div class="arch-grid">
+          <div class="arch-col">
+            <button class="node encoder selected" data-module="encoder" aria-pressed="true"><b><span class="node-num">01</span>视觉编码器</b><small>image → 256 visual tokens</small></button>
+            <button class="node actions" data-module="action" aria-pressed="false"><b><span class="node-num">02</span>动作编码</b><small>10 actions · 14 → 1024</small></button>
+            <button class="node state" data-module="state" aria-pressed="false"><b><span class="node-num">02</span>状态编码</b><small>s₀ · 14 → 1024</small></button>
+            <button class="node task" data-module="task" aria-pressed="false"><b><span class="node-num">03</span>任务查询</b><small>task_id → 1 query token</small></button>
+          </div>
+          <div class="arch-col">
+            <div class="join-label">拼成 268 个 × 1024 维 tokens</div>
+            <button class="node transformer" data-module="transformer" aria-pressed="false">
+              <b><span class="node-num">04</span>共享 Transformer</b>
+              <span class="layers" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+              <small>16 heads × 64 dimensions</small><small>Attention → FFN · 24 layers</small>
+            </button>
+            <div class="small muted" style="font-size:10px;text-align:center">任务 token 读取动态信息<br>动态 tokens 看不到任务 token</div>
+          </div>
+          <div class="arch-col outputs">
+            <button class="node latent" data-module="latent" aria-pressed="false"><b><span class="node-num">05</span>未来 latent</b><small>256 × 1024 → 256 × 768</small></button>
+            <button class="node output" data-module="progress" aria-pressed="false"><b><span class="node-num">05</span>进度增量</b><small>query: 1024 → 1</small></button>
+          </div>
+        </div>
+        <div class="flow-strip"><span aria-hidden="true">↶</span><b>未来 latent 返回下一子块</b><span>·</span><span>进度增量累加成候选分数</span></div>
+      </div>
+      <aside class="module-detail" aria-live="polite">
+        <div class="module-no" id="module-no">PART 01 / ENCODER</div>
+        <h3 id="module-title">图像 → 视觉 tokens</h3>
+        <p id="module-description"></p>
+        <div class="shape-box"><span>张量形状 · B 为批次大小</span><code id="module-shape"></code></div>
+        <a class="source-link" id="module-source" target="_blank" rel="noopener"></a>
+        <pre class="detail-code" id="module-code"></pre>
+      </aside>
+    </div>
+  </section>
+
+  <section class="section" id="rollout">
+    <div class="section-head"><div><div class="section-index">02 / IMAGINE BEFORE ACTING</div><h2>预测走了五步，真实机器人仍在 A₀。</h2><p>切换任务，观察同样的物理变化为什么会得到不同的进度分数。</p></div><div class="section-note">三条候选用于演示。论文通常评价 K = 10 条；每条分为 M = 5 个子块。</div></div>
+    <div class="panel" style="overflow:hidden">
+      <div class="control-bar">
+        <div class="control-group"><span class="control-label">任务</span><div class="segmented" aria-label="预演任务"><button data-task="0" class="active" aria-pressed="true">打开电脑</button><button data-task="1" aria-pressed="false">合上电脑</button></div></div>
+        <div class="control-group"><span class="control-label">当前候选</span><select id="roll-candidate" aria-label="选择候选动作"><option value="0">A · 持续抬起</option><option value="1">B · 小幅抬起</option><option value="2">C · 逐渐放下</option></select></div>
+      </div>
+      <div class="rollout-layout">
+        <div>
+          <div class="scenes">
+            <div class="scene real">
+              <div class="scene-head"><span>真实世界</span><span>A₀ · 尚未执行</span></div>
+              <svg id="real-scene" viewBox="0 0 300 190" role="img" aria-label="真实机器人停在起点，电脑屏幕保持初始角度"></svg>
+              <div class="scene-foot"><span class="small-badge red">机器人状态 s₀</span><span>只有这一刻的真实观察</span></div>
+            </div>
+            <div class="scene imagined">
+              <div class="scene-head"><span id="imagined-title">模型预演</span><span id="imagined-time">起点 z₀</span></div>
+              <svg id="imagined-scene" viewBox="0 0 300 190" role="img" aria-label="候选动作的假想未来场景"></svg>
+              <div class="scene-foot"><span class="small-badge" id="latent-badge">z₀ · 真实图像特征</span><span id="angle-label">20°</span></div>
+            </div>
+          </div>
+          <div style="font-size:10px;color:var(--muted);padding:0 24px 5px">右侧画面只帮助理解 latent 的含义，模型没有生成这些像素。</div>
+          <div class="timeline">
+            <div class="controls"><button class="primary" id="play-rollout">▶ 播放</button><button id="prev-step" aria-label="上一个子块">←</button><button id="next-step" aria-label="下一个子块">→</button><button id="reset-rollout">重置</button><output id="step-label">0 / 5</output></div>
+            <div class="step-buttons" aria-label="选择预演步骤"></div>
+            <div class="state-track" aria-label="每个子块的机器人状态输入"></div>
+            <p class="state-caption" id="state-caption">红色 s₀ 在每个子块都有一个位置。这里演示只传入一份当前状态时的复制分支。</p>
+          </div>
+        </div>
+        <aside class="rollout-aside">
+          <div class="score-block"><div class="score-label">已预演部分的累计进度</div><div class="score-value" id="cumulative-score">0.00</div><div class="mini-chart" id="progress-bars" aria-label="五个子块的进度增量"></div><div class="small muted">每根柱 = 一个子块的 Δp̂</div></div>
+          <div class="candidate-block"><div class="score-label">完整五步后，哪条更好？</div><div class="candidates" id="candidate-scores"></div><p>切换任务会改变排序；同一候选的未来场景保持一致。</p></div>
+          <p class="score-desc">教学分数按屏幕角度变化计算，并非模型输出或论文实测。这里只展示“动态相同、任务进度不同”的关系。</p>
+        </aside>
+      </div>
+      <details class="reader-details">
+        <summary>为什么下一步仍然输入 s₀？</summary>
+        <div class="detail-content">
+          <p>公开代码允许两种输入：若收到当前状态 <code>[B, dₛ]</code>，就复制成 <code>[B, M, dₛ]</code>；若调用者已经提供逐子块的状态序列，就直接使用那份序列。因此，图中重复红块只对应第一种调用方式。</p>
+          <p>s₀ 可以作为整段预测的起点条件，动作历史和预测 latent 提供后续变化的信息。重复 s₀ 本身没有增加新的状态信息，也不会生成未来真实状态。这里要求训练与推理对状态 token 的含义保持一致；论文没有报告重复初始状态的专门消融，实际训练约定尚不能从公开代码确定。</p>
+          <p>机器人真正执行后，下一轮决策应使用新测得的状态。此处五步全部是同一次决策里的假想预演。<a href="https://github.com/shirley430316/VeriVLA/blob/f95ab142d6b5b247b47b36137352eb6289dd86a7/verifier/ac_predictor.py#L215-L219" target="_blank" rel="noopener">查看 _expand_states()</a></p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <section class="section" id="attention">
+    <div class="section-head"><div><div class="section-index">03 / OPEN THE ATTENTION</div><h2>任务查询到底在“查”什么？</h2><p>点击矩阵中的一格。行是读取者 Q，列是被读取者 K/V；右侧展开这一格的真实乘加。</p></div><div class="section-note">数值实验：每子块 8 个 tokens、单头 4 维。示例向量，不是预训练激活。</div></div>
+    <div class="panel attention-shell">
+      <div class="attention-controls">
+        <label>任务向量<select id="att-task"><option value="0">打开电脑</option><option value="1">合上电脑</option></select></label>
+        <label>子块数 T<select id="att-blocks"><option value="1">1 个</option><option value="2" selected>2 个</option></select></label>
+        <div class="segmented" aria-label="选择读取者"><button id="read-task" class="active" aria-pressed="true">看任务行</button><button id="read-visual" aria-pressed="false">看视觉行</button></div>
+        <label class="counterfactual"><input type="checkbox" id="remove-isolation">解除任务隔离 · 反事实</label>
+      </div>
+      <div class="attn-layout">
+        <div class="matrix-panel">
+          <div class="matrix-head"><div><h3>谁可以读取谁</h3><p>列：被读取的 tokens →　行：读取者 ↓</p></div><span class="tag" id="mask-status">论文掩码</span></div>
+          <div class="matrix-scroll"><table id="attention-matrix" class="attention-matrix" aria-label="注意力矩阵，点击单元格查看计算"></table></div>
+          <div class="matrix-legend"><span>浅 <i class="gradient-key"></i> 深 = 权重大</span><span>斜纹 = 被屏蔽，权重为 0</span></div>
+          <div class="legend" style="font-size:10px;gap:11px;margin-top:12px"><span><i class="dot amber"></i>a 动作</span><span><i class="dot red"></i>s 状态</span><span><i class="dot blue"></i>z 视觉</span><span><i class="dot purple"></i>q 任务</span></div>
+          <div class="isolation-result" id="isolation-result"><strong id="visual-difference">0.000000</strong><span>仅切换任务向量时<br>示例中视觉行注意力输出的最大变化</span></div>
+          <p class="small muted" style="margin-top:12px;font-size:11px">默认选中第 2 子块的任务行。它可以读过去和当前的动作、状态、视觉，也可以读自己；不能读取其他子块的任务 token。</p>
+        </div>
+        <div class="calc-panel" aria-live="polite">
+          <div class="reader-name"><h3 id="selected-pair">任务 q → 视觉 z₁</h3><span id="pair-blocks">子块 2 → 子块 2</span></div>
+          <div class="vectors">
+            <div class="vector-box"><label id="q-label">读取者的 Q · 4 维</label><code id="q-vector"></code></div>
+            <div class="vector-box"><label id="k-label">被读取者的 K · 4 维</label><code id="k-vector"></code></div>
+          </div>
+          <div class="calc-equation" id="dot-product"></div>
+          <div class="weight-caption"><span>对这一整行做 softmax</span><span id="weight-sum">权重之和 = 1.000000</span></div>
+          <div class="weights" id="attention-weights"></div>
+          <div class="output-vector"><span class="small muted">用整行权重对所有 V 加权求和</span><code id="weighted-value"></code></div>
+          <p id="attention-explanation"></p>
+          <details style="margin-top:12px"><summary class="small" style="cursor:pointer;color:var(--teal)">Q 和 K 是怎样从 token 得到的？</summary>
+            <div class="small muted" style="margin-top:10px;line-height:1.9"><p>先对每个输入 token 做 LayerNorm，再用共享的线性层投影为 Q、K、V。任务 query 是一枚输入 token；它也产生自己的 Q、K 和 V。名为“query”不意味着它只有 Q。</p><p>本数值实验使用固定的教学输入和三组 4 × 4 权重矩阵，确实计算 LayerNorm、线性投影、点积、掩码、softmax 和 V 加权和。为聚焦这些步骤，数值实验省略 RoPE、残差与 FFN；它不是完整 predictor 的运行结果。</p><div class="shape-box"><span>当前读取者经过 LayerNorm 的输入</span><code id="normalized-vector"></code></div><div class="shape-box"><span>示例 W_Q · 每行是一个输入维度</span><code id="wq-matrix"></code></div></div>
+          </details>
+        </div>
+      </div>
+      <div class="shape-lab">
+        <div class="shape-top"><div><h3>把小矩阵换回源码尺寸</h3><p class="small muted">每个子块：10 动作 + 1 状态 + 256 视觉 + 1 任务 = 268 tokens。</p></div><div class="shape-controls"><label>批次 B<select id="shape-batch"><option value="1">1 条候选</option><option value="10">10 条候选</option></select></label><label><input id="shape-cache" type="checkbox">使用 KV cache</label></div></div>
+        <div class="shape-route">
+          <div class="tensor-card"><span>01 · 拼接并展平</span><b>X · 输入特征</b><code id="shape-x"></code><span>批次 · token 数 · 特征维</span></div>
+          <div class="tensor-card"><span>02 · LN → Linear(1024, 3072)</span><b>拆成 16 个头</b><code id="shape-qkv"></code><span>批次 · 头数 · token 数 · 头维度</span></div>
+          <div class="tensor-card"><span>03 · QKᵀ / √64 → mask</span><b>注意力分数</b><code id="shape-scores"></code><span>批次 · 头数 · Q 行数 · K 列数</span></div>
+          <div class="tensor-card"><span>04 · softmax → 乘 V</span><b>各头的输出</b><code id="shape-head"></code><span>批次 · 头数 · Q 行数 · 头维度</span></div>
+        </div>
+        <div class="shape-bottom">
+          <div class="tensor-card"><span>05 · 拼回 16 × 64 → 线性投影 → 残差 → FFN → 残差</span><b>重复主干层，长度和 D 保持不变</b><code id="shape-merged"></code></div>
+          <div class="tensor-card"><span>06 · 从最后一层读取不同位置</span><b>视觉 tokens → latent；任务 token → Δp̂</b><code id="shape-outputs"></code></div>
+        </div>
+        <p class="shape-note" id="shape-note"></p>
+        <div class="formula">$$A=\operatorname{softmax}_{\text{keys}}\!\left(\frac{QK^\top}{\sqrt{d_h}}+\mathcal M\right),\qquad Y=AV$$</div>
+        <p class="shape-note">每个读取者有一整行权重，沿 key 维度归一化。允许读取的位置取掩码值 0，禁止的位置取 −∞。源码实际传入布尔掩码；这个加法公式是等价写法。RoPE 作用在 Q、K 的位置分量上，不改变形状。不同候选位于 B 维，互相不做注意力。</p>
+      </div>
+      <details class="reader-details">
+        <summary>任务 token 如何最终变成一个进度数？</summary>
+        <div class="detail-content">
+          <p>当前任务 token 的 Q 对允许读取的 K 打分，然后把对应 V 加权汇总。这一步得到的是“该任务从当前动态上下文中读取到的信息”。各个注意力头读取不同特征方向；拼接各头、经过输出投影与残差后，再由逐 token 的 FFN 处理。重复多层后，任务位置的特征已融合动作、状态和视觉动态。</p>
+          <p>最后，<code>value_tok = h[:, :, cond_tokens + HW, :]</code> 取出任务位置，<code>value_mlp(value_tok)</code> 将 1024 维压成 1 维进度增量。名字虽然有 MLP，当前实现实际是一层 Linear。另一条输出从视觉位置取出特征，经 LayerNorm 和线性层映射回 dᵥ。两路头在同一次 forward 中读出；进度头的直接输入是任务 token 特征。</p>
+          <p>掩码阻断的是任务 token 流向动态 tokens 的前向信息路径，不会把共享 Transformer 的参数分成两套。视觉预测仍然会受动作影响；“任务无关”不等于“动作无关”。</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <section class="section" id="code">
+    <div class="section-head"><div><div class="section-index">04 / READ THE SAME LINES</div><h2>图上的每一步，都能回到代码。</h2><p>点击切换片段。行号对应官方仓库 f95ab14；每段只保留与当前机制有关的代码。</p></div><span class="tag">已发布结构 · 训练与集成待发布</span></div>
+    <div class="code-tabs" aria-label="源码片段"><button data-code="assemble" class="active" aria-pressed="true">① 拼接 tokens</button><button data-code="qkv" aria-pressed="false">② 生成 Q/K/V</button><button data-code="mask" aria-pressed="false">③ 任务掩码</button><button data-code="heads" aria-pressed="false">④ 两路输出</button><button data-code="state" aria-pressed="false">⑤ 初始状态</button></div>
+    <div class="code-area"><div class="code-meta"><strong id="code-title"></strong><a id="code-link" target="_blank" rel="noopener"></a></div><pre id="code-snippet"></pre></div>
+    <p class="code-explanation" id="code-explanation"></p>
+  </section>
+
+  <section class="section" id="notes">
+    <details class="panel read-more">
+      <summary>理解之后，再看论文依据、结果与边界 <span class="small muted">约 5 分钟 · 按需展开</span></summary>
+      <article class="reading">
+        <p><strong>论文：</strong>VeriVLA: Adaptive Test-Time Verification for Flow-Based VLAs with Latent World Models。作者：Xueli Sun、Yuxiang Lu、Yantong Liu、Xianzhe Fan、Xi Chen、Zhe Liu、Hengshuang Zhao，香港大学。<a href="https://arxiv.org/abs/2610.21985" target="_blank" rel="noopener">原文</a> · <a href="https://github.com/shirley430316/VeriVLA" target="_blank" rel="noopener">官方代码</a>。</p>
+        <h3>01 · 验证器解决“哪个候选更好”</h3>
+        <p>流匹配 VLA 使用不同噪声可以生成不同的动作块。动作一旦执行就会改变物理世界，因此作者让策略先产生候选，再用一个独立验证器判断候选的效果。验证器不直接生成机器人动作，也不在这次推理中更新 VLA 的参数。双轴触发器先用少量动作样本检测值得花额外计算的时刻，再把候选扩展到完整预算。本文交互页面聚焦触发之后的验证阶段，展示三条候选是为了便于比较，不改变论文使用 K = 10 的设定。</p>
+        <h3>02 · JEPA 规定预测目标，Transformer 实现预测</h3>
+        <blockquote>“action-conditioned autoregressive predictor”<cite>原论文 §3.4，Architecture：动作条件化的自回归预测器。</cite></blockquote>
+        <p>视觉编码器把图像变成一组 latent tokens。预测器用机器人状态和动作预测未来的同类特征。JEPA 的关键在于直接对齐表征：真实未来图像由编码器产生监督目标，模型学习使预测特征接近目标。它不需要为每条候选生成清晰的未来视频。当前源码通过多层 Transformer 完成这项预测，因此“采用 JEPA”与“主干是 Transformer”描述的是两个层次。</p>
+        <div class="formula">$$\mathcal L_{\mathrm{vis}}=\sum_{m=1}^{M}\left\|\hat z_{t+mH/M}-z_{t+mH/M}\right\|_1$$</div>
+        <p>这里 H 是动作块长度，M 是子块数；z 是真实未来观察的编码结果，带帽的 z 是预测结果。这个损失要求世界模型学习动作带来的变化。论文采用冻结的预训练视觉编码器，预测器具有机器人数据上的预训练基础，再针对验证任务训练。公开网络类本身不会自动加载这些预训练权重。</p>
+        <h3>03 · 任务查询让同一变化获得不同评价</h3>
+        <blockquote>“task-specific learnable query token”<cite>原论文 §3.4，Architecture：每个任务对应一个可学习查询 token。</cite></blockquote>
+        <p>抬起电脑屏幕是否有利，取决于任务是打开还是合上。源码用 task_id 从 embedding 表里取出一枚向量，而不是在此处用语言模型解释任意新指令。这枚向量经自注意力更新后，读取到了与该任务有关的动作和场景信息。它是整个序列中的一个位置，和其他位置一样会生成 Q、K、V；任务专用性来自 embedding，读取范围则由注意力掩码规定。</p>
+        <p>掩码同时限制时间和任务信息。一个子块可以读取自己与过去子块的动态 tokens，不能读取未来。动态 tokens 不能读取任务 token，任务 token 可以读取自己的任务信息和合法的动态上下文，但不能读其他子块的任务 token。页面的斜纹格对应权重被严格置零的位置；解除任务隔离是人为设置的反事实，用于理解信息泄漏，不代表论文方法。</p>
+        <h3>04 · 把每一步的进度相加，再比较候选</h3>
+        <blockquote>“largest cumulative predicted progress”<cite>原论文 §3.4，Inference：执行累计预测进度最大的动作块。</cite></blockquote>
+        <p>每个候选内部有 M 个相继的子块。第一个子块使用真实当前图像的 latent，之后使用前面预测的 latent，同时保留已有历史。候选之间可以放在 batch 维并行；同一候选的未来预测依次展开。进度头从每个子块的任务位置输出一个标量，这个标量对应进度变化，不是成功概率，也不是这里进行强化学习所用的 Critic 值函数。</p>
+        <div class="formula">$$S_i=\sum_{m=1}^{M}\Delta\hat p_m^{(i)},\qquad i^\star=\arg\max_i S_i$$</div>
+        <p>i 标记不同候选，m 标记同一候选的子块。一次局部倒退可以产生负的进度增量，但选择依据是整个候选的累计分数。训练时，作者将 Huber 进度回归、候选间排序与视觉预测结合；推理时仅做前向预测和排序。页面的打开/合上电脑演示使用可解释的角度分数，用来呈现这一逻辑，不是网络产生的预测。</p>
+        <h3>实验到底支持了什么？</h3>
+        <div class="table-scroll"><table class="results"><thead><tr><th>评测与指标</th><th>基础策略</th><th>加 VeriVLA</th><th>变化</th></tr></thead><tbody>
+          <tr><td>真实任务 · 完成得分（Table 1）</td><td>50.8%</td><td>65.5%</td><td>+14.7 个百分点</td></tr>
+          <tr><td>RoboTwin Clean · 成功率（Table 2）</td><td>66.4%</td><td>73.6%</td><td>+7.2 个百分点</td></tr>
+          <tr><td>RoboTwin Clean2Random · 成功率（Table 2）</td><td>62.8%</td><td>69.6%</td><td>+6.8 个百分点</td></tr>
+          <tr><td>LIBERO / π₀.₅ · 成功率（Table 3）</td><td>96.9%</td><td>97.6%</td><td>+0.7 个百分点</td></tr>
+        </tbody></table></div>
+        <p>真实任务的 65.5% 是按任务阶段累加的完成得分，不等于完整成功率。RoboTwin 表中的数字使用始终开启验证；自适应触发的计算与成功率权衡见原文 Fig. 6。因此，不能把所有指标直接横向比较，也不能将所有提升归因于触发器。更直接支持世界建模作用的是 Table 4：去掉视觉预测目标后，完成得分从 65.5% 降到 55.2%，说明共同学习动态对这组实验中的进度判断有帮助。</p>
+        <p>论文报告额外采样和验证共 326 ms，包含额外采样 80 ms 与验证器 246 ms。加上基础策略 82 ms 和触发器 14 ms，触发时总延迟是 422 ms。这些是论文配置下的测量，不是本网页运行的速度。</p>
+        <h3>两个已知局限，以及一处尚未公开的约定</h3>
+        <p><strong>作者指出：</strong>验证器只能在策略给出的候选中选择，候选质量与多样性限制了改善空间；冻结视觉编码器也可能忽略接触、细小物体位姿变化等对操作进度重要的细节。理解这些边界很重要：评分准确并不能保证候选池里一定有可成功执行的动作。</p>
+        <p><strong>代码阅读的边界：</strong>本页核对的是官方仓库 f95ab14（2026-10-16 提交），截至 2026-10-30 公开了模型结构与评分接口，训练、仿真和实机集成仍列在 TODO。网络构造默认值不等于所有实验的实际配置。本页采用 256 × 256、dᵥ = 768、D = 1024 的演示组合来讲张量，不能作为已发布检查点的配置说明。</p>
+        <p>尤其是红色机器人状态：重复 s₀ 是输入只有二维当前状态时的源码分支。模型并没有另一个状态头输出未来关节状态。把 s₀ 当作固定起点条件是可理解的解释，但是否与实际训练一致、重复输入是否有收益，都需要完整训练数据与集成代码才能核实。本页明确保留了这一未决点。</p>
+      </article>
+    </details>
+  </section>
+  <p class="golden">任务查询读取“这段变化对我有何用”；<br>世界模型预测“这段动作会带来什么变化”。</p>
+  <footer><div>VeriVLA 交互阅读 · 2026-10-30<br>独立教学页面 · 示例计算与论文实测已区分 · 可离线打开</div><div><a href="https://arxiv.org/abs/2610.21985" target="_blank" rel="noopener">论文原文 ↗</a><a href="https://github.com/shirley430316/VeriVLA/tree/f95ab142d6b5b247b47b36137352eb6289dd86a7" target="_blank" rel="noopener">源码快照 ↗</a><a href="index.html">完整论文解读 →</a></div></footer>
+</main>
+<div id="announce" class="sr-only" aria-live="polite"></div>
+</body>
+</html>

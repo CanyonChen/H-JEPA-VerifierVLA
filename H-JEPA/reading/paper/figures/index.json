@@ -1,0 +1,738 @@
+[
+ {
+  "kind": "figure",
+  "num": "1",
+  "page": 1,
+  "caption": "Figure 1: Hierarchical abstractions support planning at multiple timescales. Left: visualization of hierarchi- cal planning in Visual AntMaze. Level 3 plans toward the final goal in the most abstract latent space. Its first predicted state becomes a subgoal for the level-2 planner; this decomposition recurses to the level-1 planner, which outputs raw actions. The first and last columns decode each level’s start and goal latents, respectively; the middle columns decode its planned predictions. Higher-level latents retain the ant’s position and maze layout while losing leg-pose detail. See §2.2 for the formal planning procedure. Right: planning success versus planner compute on AntMaze. Curves show Pareto fronts for flat LeWM [53] and two-/three-level H-JEPA; error bars are standard error (SE) over three paired model and planner seeds (§4.1).",
+  "file": "figures/fig-01.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.172,
+   0.545,
+   0.828,
+   0.775
+  ],
+  "label": "fig:hierarchy-teaser",
+  "source_files": [
+   "planning_illustrations/teaser"
+  ],
+  "tex_line": 234,
+  "refs": [
+   "§1 Introduction (L297)"
+  ]
+ },
+ {
+  "kind": "figure",
+  "num": "2",
+  "page": 3,
+  "caption": "Figure 2: H-JEPA training across temporal scales. (a) With w2=1 and s2=2, level 2 encodes every other level-1 state pointwise and aggregates the intervening action embeddings. Faded columns are retained at level 1 but skipped at level 2. (b) Each level predicts the next latent state conditioned on preceding latent states and actions, with SIGReg regularizing the states against collapse. All levels are trained end-to-end, with gradients from upper-level objectives propagating through lower-level encoders.",
+  "file": "figures/fig-02.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.172,
+   0.1,
+   0.828,
+   0.304
+  ],
+  "label": "fig:hjepa_training",
+  "source_files": [],
+  "tex_line": 327,
+  "refs": [
+   "§2.1 Hierarchical predictive learning (L506)"
+  ]
+ },
+ {
+  "kind": "figure",
+  "num": "3",
+  "page": 4,
+  "caption": "Figure 3: Planning runs top-down through the hierarchy, and the lower level is steered by subgoals the upper level predicted. Two-level instance (L=2) of §2.2. Current and goal observations o0 and og are encoded bottom-up into initial states z(1) become subgoals for level 1, which",
+  "file": "figures/fig-03.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.172,
+   0.1,
+   0.828,
+   0.323
+  ],
+  "label": "fig:hierarchical_planning",
+  "source_files": [],
+  "tex_line": 537,
+  "refs": [
+   "§2.2 Hierarchical planning over learned abstr (L702)"
+  ]
+ },
+ {
+  "kind": "figure",
+  "num": "4",
+  "page": 5,
+  "caption": "Figure 4: Selective abstraction across hierarchy levels. Left: MLP-probe NMSE (mean ± SE over three training seeds) at successive levels of four-level H-JEPAs on Visual AntMaze and FourRoomDistractors. Body state or distractor position becomes less recoverable at higher levels while agent position remains recoverable. Right: one observation decoded from levels 1–3; decoders serve only for visualization. AntMaze’s leg pose becomes less distinct; FourRoom’s blue distractor fades while the red agent remains visible.",
+  "file": "figures/fig-04.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.17,
+   0.1,
+   0.828,
+   0.274
+  ],
+  "label": "fig:depth",
+  "source_files": [
+   "abstraction/depth_probes"
+  ],
+  "tex_line": 771,
+  "refs": [
+   "§3 Learning Hierarchical Abstractions (L836)"
+  ]
+ },
+ {
+  "kind": "figure",
+  "num": "5",
+  "page": 5,
+  "caption": "Figure 5: Larger temporal-frequency gaps correlate with stronger selective abstraction. The x-axis mea- sures temporal separation in each training dataset: the ratio of the characteristic frequencies (spectral centroids) of the fastest- and slowest-varying state components, shown on a log scale. The y-axis shows the change in per-entity probing NMSE from level 1 to level 2; positive values indicate poorer recoverability at level 2. Across environments, larger frequency gaps coincide with greater increases in fast-entity probing error (filled markers), while slow-entity error remains near its level-1 value (open markers). Environments with gaps below 2× (shaded region) show little selective abstraction.",
+  "file": "figures/fig-05.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.495,
+   0.515,
+   0.828,
+   0.709
+  ],
+  "label": "fig:selective",
+  "source_files": [
+   "freq_abstraction_scatter"
+  ],
+  "tex_line": 817,
+  "refs": [
+   "§3 Learning Hierarchical Abstractions (L859)",
+   "§12.2 Per-entity probes across environments (L1937)"
+  ]
+ },
+ {
+  "kind": "figure",
+  "num": "6",
+  "page": 6,
+  "caption": "Figure 6: Gradient-based planning across compute budgets and hierarchy depths, comparing LeWM [53], H-JEPA, and the hierarchical world model baseline HWM [92]. Error bars in both panels show one SE over three seeds. Top: success versus planner FLOPs per episode, sweeping action-sample counts with other planner settings fixed. FLOPs include forward and backward passes. Bold curves are Pareto fronts. Bottom: success versus hierarchy depth on a separate set of 50 tasks per environment. Planner settings are selected under a 100-TFLOP planning budget. See §E for protocols and Fig. 9c for the DROID results.",
+  "file": "figures/fig-06.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.172,
+   0.1,
+   0.828,
+   0.374
+  ],
+  "label": "fig:compute-pareto, fig:depth-planning",
+  "source_files": [
+   "planning/depth_planning_combined"
+  ],
+  "tex_line": 866,
+  "refs": [
+   "§4.1 Planning performance across compute budg (L901)",
+   "§4.2 How hierarchy improves planning (L1058)",
+   "§4.1 Planning performance across compute budg (L921)",
+   "§4.2 How hierarchy improves planning (L994)",
+   "§4.2 How hierarchy improves planning (L1017)",
+   "§4.2 How hierarchy improves planning (L1027)"
+  ]
+ },
+ {
+  "kind": "figure",
+  "num": "7",
+  "page": 7,
+  "caption": "Figure 7: Planning cost geometry on AntMaze. Dis- tance to anchor ⋆in each latent space of a three-level H-JEPA (blue near, red far; one training seed). Higher levels show more graded costs along corridors and a broader low-cost region around the anchor.",
+  "file": "figures/fig-07.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.502,
+   0.1,
+   0.828,
+   0.228
+  ],
+  "label": "tab:cost-ladder, fig:heatmaps-levels",
+  "source_files": [
+   "heatmaps/composite_levels"
+  ],
+  "tex_line": 948,
+  "refs": [
+   "§4.2 How hierarchy improves planning (L1015)",
+   "§4.2 How hierarchy improves planning (L1024)",
+   "§11 Planning evaluation (L1710)",
+   "§11 Planning evaluation (L1772)",
+   "§14 Planning-cost ablations across environme (L2010)",
+   "§14 Planning-cost ablations across environme (L2038)"
+  ]
+ },
+ {
+  "kind": "figure",
+  "num": "8",
+  "page": 8,
+  "caption": "Figure 8: Temporal decomposition of planning costs. We analyze a two-level H-JEPA with s2 = 3. Top: Goal cost in level-1 and level-2 space. For a held-out expert trajectory we encode each frame at both levels, and compute the distance between each timestep’s latent z(ℓ) At level 2 we subsample at the training stride. Bottom: Subgoal tracking cost. The level-2 subgoals are the level-2 latents at the subsampled timesteps. Within each subgoal segment we re-anchor the level-1 rollout from the encoded latent at the segment start, unroll it to the next subgoal, project it into level-2 space, and measure its distance to that subgoal. Within each segment, the cost decreases monotonically toward the next subgoal.",
+  "file": "figures/fig-08.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.172,
+   0.098,
+   0.828,
+   0.309
+  ],
+  "label": "fig:tmono-instance",
+  "source_files": [
+   "tmono/instance"
+  ],
+  "tex_line": 1038,
+  "refs": [
+   "§4.2 How hierarchy improves planning (L1061)"
+  ]
+ },
+ {
+  "kind": "figure",
+  "num": "9",
+  "page": 9,
+  "caption": "Figure 9: Scene diversity makes the inverse-dynamics loss necessary, and a second level adds performance at a lower planner budget. (a) First frames of three Cube and three DROID clips, showing scene variation across episodes. (b) DROID at 5 fps, Fréchet fidelity (%), showing the slow-feature-collapsed LeWM, LeWM+IDM, then two hierarchies: HWM, whose level 2 is an identity encoder, and H-JEPA, whose level 2 is learned. (c) The one-level and two-level models of (b) swept over planner budgets, Fréchet fidelity against measured planner TFLOPs per episode on a log axis, the bold line being the Pareto front. Two frozen-encoder world models are shown for reference: they are public checkpoints, evaluated at their native 1 fps on the 15 clips whose window fits at that rate, so their intervals span three planner seeds. All other intervals are SE over three train seeds.",
+  "file": "figures/fig-09.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.176,
+   0.088,
+   0.823,
+   0.305
+  ],
+  "label": "fig:scene-diversity, fig:cls-ladder-droid, fig:compute-pareto-real, fig:scene-diversity-recipe",
+  "source_files": [
+   "droid/scene_diversity_cube_droid",
+   "droid/cls_ladder",
+   "compute/pareto_real_cls_droid_sharedy"
+  ],
+  "tex_line": 1118,
+  "refs": [
+   "§4.3 Scaling to diverse scenes: DROID (L1168)",
+   "§4.3 Scaling to diverse scenes: DROID (L1170)",
+   "§11 Planning evaluation (L1841)",
+   "§4 Planning with Hierarchical Abstractions (L878)",
+   "§4.3 Scaling to diverse scenes: DROID (L1171)",
+   "§11 Planning evaluation (L1839)"
+  ]
+ },
+ {
+  "kind": "figure",
+  "num": "10",
+  "page": 21,
+  "caption": "Figure 10: Per-level training losses of the four-level H-JEPA models and of the DROID models. Top three rows: unweighted prediction loss and SIGReg statistic of each level of the four-level models over training, and their total training objective, the sum over levels of the prediction loss plus the weighted SIGReg term. Every level of a model uses the same SIGReg weight (0.18 on FourRoom, 0.09 elsewhere), so the weighted curves differ from the unweighted ones by a constant factor per environment. The seed band of the total objective is narrower than its line. Bottom row: unweighted prediction, SIGReg and inverse-dynamics losses of the DROID flat LeWM+IDM (orange, dashed) and of both levels of the two-level H-JEPA (solid) over their 100 training epochs, and the total training objective, the sum of all terms weighted as in Table 5 (level 1: SIGReg 0.08, IDM 100; level 2: SIGReg 0.16, IDM 50), summed over both levels for H-JEPA. All curves are the mean over three training seeds with a min/max band, on a log scale.",
+  "file": "figures/fig-10.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.166,
+   0.193,
+   0.828,
+   0.687
+  ],
+  "label": "fig:training-dynamics",
+  "source_files": [
+   "training_dynamics/depth4_losses",
+   "droid/droid_training_dynamics"
+  ],
+  "tex_line": 1466,
+  "refs": [
+   "§9.1 Single-scene environments (L1435)",
+   "§9.1 Single-scene environments (L1456)"
+  ]
+ },
+ {
+  "kind": "figure",
+  "num": "11",
+  "page": 25,
+  "caption": "Figure 11: Successful hierarchical planner executions. Selected H-JEPA executions on one evaluation task per environment, using three-level models for FourRoom and AntMaze and two-level models for Cube and Push-T. These checkpoints also appear in Fig. 6 (bottom); the recordings use their original evaluation settings rather than the compute-selected sample counts. Each row shows eight observations sampled uniformly in environment steps, followed by the goal observation supplied to the planner. Rows end at first recorded success, except Cube, which shows the full 30-step execution to include the completed lift. Labels give elapsed environment steps.",
+  "file": "figures/fig-11.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.17,
+   0.097,
+   0.828,
+   0.374
+  ],
+  "label": "fig:eval-tasks",
+  "source_files": [
+   "planning/eval_tasks"
+  ],
+  "tex_line": 1717,
+  "refs": [
+   "§11 Planning evaluation (L1705)"
+  ]
+ },
+ {
+  "kind": "figure",
+  "num": "12",
+  "page": 27,
+  "caption": "Figure 12: Temporal-frequency separation and selective abstraction. (a) One AntMaze episode: normalized global position (red) and 13 body-state dimensions (blue) over 81 level-1 frames (left), and cumulative absolute normalized increments averaged across dimensions (right). Inverse spectral centroids are about 35 frames for position and 4 for body state (8.3× gap); body state accumulates roughly ten times more variation. Including the omitted velocity dimensions leaves the frequency gap unchanged. (b) Per-entity spectral centroids in cycles per level-1 frame (top, log scale) and paired level-1 and level-2 probe macro NMSE (bottom). The left group shows FourRoom, AntMaze and Humanoid; the right shows Push-T, OGBench Cube and DROID. Probe heads are matched across levels within each environment and differ across environments. Error bars are one SE over three training seeds. All entities in an environment share the same level-2 configuration.",
+  "file": "figures/fig-12.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.171,
+   0.125,
+   0.828,
+   0.503
+  ],
+  "label": "fig:entity-traces, fig:selective-bars, fig:frequency-abstraction",
+  "source_files": [
+   "ant/entity_traces",
+   "freq_to_abstraction_no_robocasa"
+  ],
+  "tex_line": 1888,
+  "refs": [
+   "§12.1 Frequency separation within a trajectory (L1870)",
+   "§10 Probing and decoding (L1676)",
+   "§12.1 Frequency separation within a trajectory (L1874)",
+   "§12.2 Per-entity probes across environments (L1937)"
+  ]
+ },
+ {
+  "kind": "figure",
+  "num": "13",
+  "page": 28,
+  "caption": "Figure 13: Planning with different training datasets on Visual AntMaze. Planning success rate (GD online, mean over three seeds), using explore, stitch, or their union for training. Left: flat level-1 planning, with one model trained on each of the three datasets. Middle: two-level hierarchical planning after stagewise training, covering all nine combinations of level-1 (rows) and level-2 (columns) datasets. Right: two-level hierarchical planning after end-to-end training, with both levels trained on the same dataset in each run, giving only diagonal entries. Grey cells were not run. The end-to-end runs are FLOP-matched to the stagewise ones.",
+  "file": "figures/fig-13.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.17,
+   0.1,
+   0.828,
+   0.241
+  ],
+  "label": "fig:dataset-grid",
+  "source_files": [
+   "ant/dataset_grid/level1",
+   "ant/dataset_grid/stagewise",
+   "ant/dataset_grid/e2e_joint"
+  ],
+  "tex_line": 1955,
+  "refs": [
+   "§13 Data specialization across levels (L1977)",
+   "§13 Data specialization across levels (L1995)"
+  ]
+ },
+ {
+  "kind": "figure",
+  "num": "14",
+  "page": 31,
+  "caption": "Figure 14: On OGBench Cube, where the outcome is observable, Fréchet fidelity separates the episodes that can succeed from those that cannot, but not the ones that do. One frozen checkpoint, 9 configuration groups × 3 planner seeds × 50 episodes. (a) One point per planner configuration; in the shaded band the flat and hierarchical planners have equal offline fidelity and opposite grasp outcomes. (b) Every episode: none succeeds below a fidelity threshold, and most above it still fail.",
+  "file": "figures/fig-14.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.188,
+   0.098,
+   0.812,
+   0.27
+  ],
+  "label": "fig:frechet-cube",
+  "source_files": [
+   "droid/frechet_cube_ab"
+  ],
+  "tex_line": 2197,
+  "refs": [
+   "§16.2 The Fr\\'echet fidelity offline metric (L2178)"
+  ]
+ },
+ {
+  "kind": "figure",
+  "num": "15",
+  "page": 31,
+  "caption": "Figure 15: Against a continuous outcome the same offline metric ranks degree of progress. RoboCasa CloseDrawer, one frozen checkpoint, 99 planner configurations × 32 held-out episodes, budget 200 steps; the configurations are varied to spread the outcomes, not tuned for task performance. x is Fréchet fidelity, computed exactly as on DROID; y is graded drawer-closure success, a continuous outcome DROID cannot report. (a) One point per planner configuration, median fidelity against mean graded success. (b) Every episode, with the mean of each fidelity decile joined. The claim rests on the within-configuration rank correlation, which holds episode difficulty and planner settings fixed; the pooled and between-configuration values are inflated by a between-configuration mean shift.",
+  "file": "figures/fig-15.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.236,
+   0.355,
+   0.764,
+   0.527
+  ],
+  "label": "fig:robocasa-frechet",
+  "source_files": [
+   "droid/robocasa_frechet_vs_graded_nomodes"
+  ],
+  "tex_line": 2210,
+  "refs": [
+   "§16.2 The Fr\\'echet fidelity offline metric (L2184)"
+  ]
+ },
+ {
+  "kind": "figure",
+  "num": "16",
+  "page": 33,
+  "caption": "Figure 16: What the DROID planner imagines, on every clip of the evaluation set. Two-level stagewise model, held-out, training seed 1; all 16 clips ordered best to worst by Fréchet fidelity, down the left column then the right, +75% down to +0% at the zero-action floor. Each clip is two strips: above, the logged expert clip; below, the decoded plan, which is the level-1 rollout under the planner’s committed commands with the level-2 macro-plan interleaved into it at every third column (temporal stride 3), ringed in blue. Columns are timesteps. The leftmost is the context frame the planner is given (green); the rest are imagined (red), and blur along the rollout, which is the decoder’s fidelity limit and not a planning failure.",
+  "file": "figures/fig-16.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.172,
+   0.257,
+   0.828,
+   0.668
+  ],
+  "label": "fig:decoded-plans",
+  "source_files": [
+   "droid/decoded_plans"
+  ],
+  "tex_line": 2248,
+  "refs": [
+   "§9.2 DROID (L1564)",
+   "§16.1 Planning-evaluation protocol (L2143)",
+   "§16.3 Decoded plans (L2231)"
+  ]
+ },
+ {
+  "kind": "figure",
+  "num": "17",
+  "page": 34,
+  "caption": "Figure 17: SIGReg restores representation rank; the inverse-dynamics term is what turns rank into planning fidelity. Full grid around the level-1 DROID configuration of table 5: SIGReg ∈{0, 0.08} × IDM weight ∈{0, 50, 100, 200} × prediction-target detachment, 16 cells, one training seed each, read at epoch 100. Five SIGReg-off cells (hatched) were stopped once collapsed and are read at their last epoch. Left: level-1 effective rank [25] of the CLS embedding, max 384. Right: Fréchet fidelity on the 16-clip set; the grey band holds sub-floor cells, drawn as fixed-depth stubs annotated with their true value. Each planning bar is the mean over planner seeds 1, 2 and 3 of one trained model, and its error bar is the standard error (SE) over those three planner seeds.",
+  "file": "figures/fig-17.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.164,
+   0.061,
+   0.838,
+   0.259
+  ],
+  "label": "fig:anticollapse",
+  "source_files": [
+   "droid/anticollapse_cls"
+  ],
+  "tex_line": 2344,
+  "refs": [
+   "§4.3 Scaling to diverse scenes: DROID (L1168)",
+   "§17.1 What SIGReg, IDM and detachment each con (L2330)",
+   "§18.4 The objective selects by predictability, (L2528)",
+   "§18.7 The inverse-dynamics term is a barrier o (L2652)"
+  ]
+ },
+ {
+  "kind": "figure",
+  "num": "18",
+  "page": 35,
+  "caption": "Figure 18: The SIGReg and inverse-dynamics coefficients are chosen jointly, once per level. DROID at 5 fps; Fréchet fidelity (%, higher is better), mean and standard error over three training seeds, each averaged over three planner seeds. Left, the level-1 grid on single-level models; right, the level-2 grid on stagewise models with level 1 frozen. Both use the gradient-based planner of our headline results, and share one color scale. The heavy outline marks the coefficients we keep; at level 1 they lie within one standard error of the best cell.",
+  "file": "figures/fig-18.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.269,
+   0.1,
+   0.731,
+   0.351
+  ],
+  "label": "fig:crossval-l1grid-cls",
+  "source_files": [
+   "droid/crossval_l1grid_cls"
+  ],
+  "tex_line": 2376,
+  "refs": [
+   "§4.3 Scaling to diverse scenes: DROID (L1114)",
+   "§9.2 DROID (L1563)",
+   "§17.2 Cross-validating the SIGReg and inverse- (L2367)"
+  ]
+ },
+ {
+  "kind": "figure",
+  "num": "19",
+  "page": 36,
+  "caption": "Figure 19: Scene diversity sends latent vari- ance between episodes. Within-episode (the slow- feature degree χ of Definition 1) and between- episode shares of the latent variance. Bars are ±1 standard error (SE) over three training seeds.",
+  "file": "figures/fig-19.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.521,
+   0.242,
+   0.828,
+   0.367
+  ],
+  "label": "fig:varcomp",
+  "source_files": [
+   "droid/latent_variance_decomp_no_robocasa"
+  ],
+  "tex_line": 2466,
+  "refs": [
+   "§18.2 Where the latent variance goes (L2481)"
+  ]
+ },
+ {
+  "kind": "table",
+  "num": "1",
+  "page": 7,
+  "caption": "Table 1: Changing only the cost on AntMaze. Suc- cess (%, mean ± SE, three seeds). Within each column, the first four rows share level-1 dynamics and planner settings; only the cost space changes. Hierarchical plan- ning is a separate reference.",
+  "file": "figures/tab-01.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.174,
+   0.1,
+   0.496,
+   0.223
+  ],
+  "label": "tab:cost-ladder",
+  "source_files": [],
+  "tex_line": 968,
+  "refs": [
+   "§4.2 How hierarchy improves planning (L1015)",
+   "§4.2 How hierarchy improves planning (L1024)",
+   "§11 Planning evaluation (L1710)",
+   "§11 Planning evaluation (L1772)",
+   "§14 Planning-cost ablations across environme (L2010)",
+   "§14 Planning-cost ablations across environme (L2038)"
+  ]
+ },
+ {
+  "kind": "table",
+  "num": "2",
+  "page": 18,
+  "caption": "Table 2: Notation reference. Symbols are introduced in §2 unless the row names another section. Level superscripts are always parenthesized, (ℓ); a bare subscript is a time index and a:b is a half-open range. Appendix-local symbols are defined where they are used.",
+  "file": "figures/tab-02.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.176,
+   0.185,
+   0.824,
+   0.351
+  ],
+  "label": "tab:notation",
+  "source_files": [],
+  "tex_line": 1244,
+  "refs": [
+   "§18 Slow-feature collapse in joint-embedding (L2432)",
+   "§18 Slow-feature collapse in joint-embedding (L2436)"
+  ]
+ },
+ {
+  "kind": "table",
+  "num": "3",
+  "page": 20,
+  "caption": "Table 3: Temporal layout of one training sample and the clips it leaves per epoch. The minimum clip length is the shortest episode segment that yields one training sample, in environment steps, including both endpoint observations. All H-JEPA models use stride two and window one at every level above the first. A clip must lie within one episode (the loader reserves 5 n1 environment steps per clip), so the number of clips an epoch yields falls as the minimum clip length grows; parentheses give each count as a percentage of the LeWM count in the same environment. Each clip supplies three teacher-forced transitions per level.",
+  "file": "figures/tab-03.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.174,
+   0.48,
+   0.826,
+   0.609
+  ],
+  "label": "tab:impl-data",
+  "source_files": [],
+  "tex_line": 1407,
+  "refs": [
+   "§4.1 Planning performance across compute budg (L913)",
+   "§4.1 Planning performance across compute budg (L934)",
+   "§9.1 Single-scene environments (L1401)",
+   "§9.1 Single-scene environments (L1403)",
+   "§9.1 Single-scene environments (L1448)",
+   "§9.1 Single-scene environments (L1452)"
+  ]
+ },
+ {
+  "kind": "table",
+  "num": "4",
+  "page": 22,
+  "caption": "Table 4: Per-environment architecture and training settings. Upper-level predictor dimensions and H-JEPA epoch counts apply to every depth. H-JEPA models are initialized independently of the LeWM baselines.",
+  "file": "figures/tab-04.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.227,
+   0.419,
+   0.773,
+   0.547
+  ],
+  "label": "tab:impl-training",
+  "source_files": [],
+  "tex_line": 1515,
+  "refs": [
+   "§8 Environments and datasets (L1328)",
+   "§9.1 Single-scene environments (L1387)",
+   "§9.1 Single-scene environments (L1499)"
+  ]
+ },
+ {
+  "kind": "table",
+  "num": "5",
+  "page": 23,
+  "caption": "Table 5: Training hyperparameters on DROID. Predictors are causal transformers, given as width/depth. The grouping row gives the shape of the tensor SIGReg tests: (T, N, D) tests normality within each timestep, over the N sequences of the batch. The architecture and loss settings do not depend on the training schedule, whether end-to-end or stagewise (§C.2); the optimization block does, and reports the end-to-end headline runs. The peak learning rate is the same at both levels, AdamW runs at β = (0.9, 0.999), and the dataloader length caps the iterations per epoch, which gives 292 at this batch size.",
+  "file": "figures/tab-05.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.341,
+   0.284,
+   0.659,
+   0.717
+  ],
+  "label": "tab:hparams",
+  "source_files": [],
+  "tex_line": 1582,
+  "refs": [
+   "§9.1 Single-scene environments (L1482)",
+   "§9.2 DROID (L1557)",
+   "§9.2 DROID (L1559)",
+   "§9.2 DROID (L1570)",
+   "§17.1 What SIGReg, IDM and detachment each con (L2342)",
+   "§17.1 What SIGReg, IDM and detachment each con (L2349)"
+  ]
+ },
+ {
+  "kind": "table",
+  "num": "6",
+  "page": 24,
+  "caption": "Table 6: Probing data and probed entities per environment. Transition counts are for fitting (train) and scoring (eval). Visual AntMaze is scored on one evaluation set with equal numbers of explore and stitch episodes. On FourRoomDistractors and Visual AntMaze, whose state separates into slow and fast entities (Fig. 12b), the entities are labeled accordingly. Entity dimensions in parentheses.",
+  "file": "figures/tab-06.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.193,
+   0.314,
+   0.807,
+   0.48
+  ],
+  "label": "tab:impl-probing",
+  "source_files": [],
+  "tex_line": 1668,
+  "refs": [
+   "§10 Probing and decoding (L1662)"
+  ]
+ },
+ {
+  "kind": "table",
+  "num": "7",
+  "page": 26,
+  "caption": "Table 7: Planning settings for the simulated depth comparison. S: candidate sequences; η: AdamW learning rate; H: configured horizon in predicted steps of that level, used by the schedule described above. Tuples list levels from lowest to highest, except the H-JEPA learning-rate row, which lists level one and the rate shared by all upper levels. Episode budgets are in environment steps. Cube’s horizon-one upper solvers are skipped, so their listed candidate counts are unused.",
+  "file": "figures/tab-07.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.174,
+   0.176,
+   0.826,
+   0.361
+  ],
+  "label": "tab:impl-planning",
+  "source_files": [],
+  "tex_line": 1776,
+  "refs": [
+   "§11 Planning evaluation (L1704)",
+   "§11 Planning evaluation (L1756)",
+   "§11 Planning evaluation (L1763)"
+  ]
+ },
+ {
+  "kind": "table",
+  "num": "8",
+  "page": 26,
+  "caption": "Table 8: Planning settings on DROID. S: candidate sequences; η: AdamW learning rate; H: configured horizon in predicted steps of that level. Tuples list levels from lowest to highest. Every level runs AdamW for at most 90 iterations with early stopping when the best cost stalls; the cross-level action cost is 0 and the subgoal weight β of Eq. (6) is 0.5, for both two-level arms. Planning is open-loop: the whole level-1 plan is executed, so the commit width equals the level-1 horizon. Each model keeps one η and these settings at every planner budget: the compute-Pareto of Fig. 9c varies only the number of candidates, chosen independently per level for the two-level arms. The listed S is the operating point of each bar in Fig. 9b.",
+  "file": "figures/tab-08.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.385,
+   0.479,
+   0.615,
+   0.652
+  ],
+  "label": "tab:impl-planning-real",
+  "source_files": [],
+  "tex_line": 1828,
+  "refs": [
+   "§11 Planning evaluation (L1826)"
+  ]
+ },
+ {
+  "kind": "table",
+  "num": "9",
+  "page": 29,
+  "caption": "Table 9: Planning-cost ablations across environments. Success (%, mean ± SE, three seeds), using the same protocol as Table 1. Within each H-JEPA row, only the cost space varies across the four level-1 planning columns; LeWM and hierarchical H-JEPA are references. For FourRoom, bold marks the highest mean among cost spaces. FourRoom gains from projected costs, while Cube and Push-T show no clear benefit.",
+  "file": "figures/tab-09.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.201,
+   0.326,
+   0.799,
+   0.555
+  ],
+  "label": "tab:cost-ladder-appendix",
+  "source_files": [],
+  "tex_line": 2034,
+  "refs": [
+   "§4.2 How hierarchy improves planning (L1033)",
+   "§11 Planning evaluation (L1710)",
+   "§11 Planning evaluation (L1772)",
+   "§14 Planning-cost ablations across environme (L2009)"
+  ]
+ },
+ {
+  "kind": "table",
+  "num": "10",
+  "page": 29,
+  "caption": "Table 10: Prediction-cost monotonicity (−Spearman of ∥z(ℓ) −g(ℓ)∥2 over three training seeds, held-out episodes). L2 columns score each model’s level-2 encoding against the final goal; subgoal scores a level-1 rollout, re-anchored to the true state at each subgoal (bounded horizon), against the level-2 subgoals (per-segment).",
+  "file": "figures/tab-10.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.207,
+   0.736,
+   0.793,
+   0.847
+  ],
+  "label": "tab:tmono",
+  "source_files": [],
+  "tex_line": 2081,
+  "refs": [
+   "§4.2 How hierarchy improves planning (L1067)",
+   "§15 Prediction-cost monotonicity (L2075)"
+  ]
+ },
+ {
+  "kind": "table",
+  "num": "11",
+  "page": 35,
+  "caption": "Table 11: Our distributed SIGReg is exactly invariant to how a fixed total batch is sharded; a single- GPU implementation is not. One fixed Gaussian matrix (n = 256, D = 32, M = 64 directions) sharded contiguously across W ranks in float64. The reference is the SIGReg released with LeWM [53], formula- identical to ours but with its prefactor set by the local batch and no collective; its code documents itself as single-GPU. The data follow the target, so its 14% drift is launch topology, not signal.",
+  "file": "figures/tab-11.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.266,
+   0.511,
+   0.734,
+   0.602
+  ],
+  "label": "tab:sigreg-ws",
+  "source_files": [],
+  "tex_line": 2406,
+  "refs": [
+   "§17.3 SIGReg under data parallelism (L2400)"
+  ]
+ },
+ {
+  "kind": "table",
+  "num": "12",
+  "page": 38,
+  "caption": "Table 12: Training without the inverse-dynamics term: the SIGReg ladder (top) and time repulsion at its largest coefficient (middle). Level-1 models at 5 fps, γ = 0, three train seeds, 100 epochs. These runs feed SIGReg the flattened (NT, D) tensor, one normality test over all NT embeddings of the minibatch, which places time in the sample axis, so they carry the ∆of Proposition 2; the barrier is what the ladder probes. “Onset” is the first epoch at which Fréchet fidelity (Eq. (7)) drops clearly below the zero-action floor, the next column the epoch at which the predictor’s action sensitivity first falls below 0.05 (seed spread ±2 epochs). Best fidelity is the highest before turning over; final fidelity and sensitivity are read over epochs 98–100; χ is Eq. (10) on the final checkpoint (one seed for the repulsion runs, three for the IDM-on row). Ladder rows carry no terminal value (at most two seeds reach epoch 100).",
+  "file": "figures/tab-12.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.175,
+   0.226,
+   0.825,
+   0.393
+  ],
+  "label": "tab:sf-idm0",
+  "source_files": [],
+  "tex_line": 2569,
+  "refs": [
+   "§18.4 The objective selects by predictability, (L2528)",
+   "§18.5 Pooling time into the sample axis: a rea (L2565)",
+   "§18.6 Time repulsion: a barrier that needs no  (L2628)",
+   "§18.7 The inverse-dynamics term is a barrier o (L2652)"
+  ]
+ },
+ {
+  "kind": "table",
+  "num": "13",
+  "page": 40,
+  "caption": "Table 13: Model-based hierarchical control methods along four axes that define H-JEPA. Pixels: operates from high-dimensional visual observations rather than a low-dimensional state. Task-agnostic: reward-free training with no task signal; the task objective (a goal or a planning cost) is defined only at test time. Recon- struction Free: learns representations and dynamics with no reconstruction objective, predicting latent targets rather than decoding observations. Hierarchy of learned latent spaces: a stack of distinct latent spaces, each a coarser abstraction of the one below that discards detail (vs. a single/shared space, parallel spaces, or a hierarchy of decisions only). ✓yes, ✗no, ∼partial. H-JEPA is the only method satisfying all four; HWM, our baseline, differs on exactly one axis.",
+  "file": "figures/tab-13.png",
+  "mode": "裁剪",
+  "bbox": [
+   0.172,
+   0.213,
+   0.828,
+   0.369
+  ],
+  "label": "tab:hier-control",
+  "source_files": [],
+  "tex_line": 2739,
+  "refs": [
+   "§1 Introduction (L284)",
+   "§5 Related Work (L1197)"
+  ]
+ }
+]
