@@ -3,7 +3,7 @@
 更新日期：2026-11-10
 
 所属阶段：[总实验计划](plan.md)中的 P0 / baseline_setup。  
-当前状态：已完成论文、官方资源与本地代码静态核对，openpi、ALOHA 与 LIBERO 源码已按固定版本完整准备，并作为本仓库的普通目录管理。根据用户回传日志，统一 uv 模型环境已在服务器安装，203 个包的依赖检查及 CPU、GPU 上的四项模型检查均通过；仿真环境安装、模型权重下载、检查点推理、训练与评测待执行。
+当前状态：已完成论文、官方资源与本地代码静态核对，openpi、ALOHA 与 LIBERO 源码已按固定版本完整准备，并作为本仓库的普通目录管理。根据用户回传日志，统一 uv 模型环境的依赖及 CPU/GPU 检查均通过，官方 π₀.₅-LIBERO 权重已下载，配套 norm stats 加载和两次 GPU 合成观测推理均通过；服务通信、仿真环境、真实观测推理、训练与闭环评测待执行。
 
 资源：八卡 A100/H100 服务器、MuJoCo；Piper 真机用于后续阶段。
 
@@ -41,14 +41,14 @@
 | LIBERO 必需文件 | 已确认 `requirements.txt`、`bddl_files/`、`init_files/` 与 `assets/` 存在 |
 | Git 操作入口 | 在本项目根目录执行提交与更新；三个源码目录不再各自维护 Git 历史 |
 
-先前的 LIBERO 检出不完整与 ALOHA 子模块指针差异已在导入前解决。服务器工作副本与统一模型环境已准备，CPU 模型检查及 GPU 1 上的 PyTorch/JAX 模型检查均通过；当前先加载 checkpoint 及 norm stats，验证合成观测推理，再准备仿真环境、真实观测推理与 EGL 离屏渲染检查。
+先前的 LIBERO 检出不完整与 ALOHA 子模块指针差异已在导入前解决。服务器统一模型环境及官方检查点的合成观测推理已通过；后续模型服务复用现有权重缓存，继续准备 LIBERO 仿真环境、真实观测推理与 EGL 离屏渲染检查。
 
 **执行计划表。**
 
 | 步骤 / 标识 | 要做的工作 | 产物 | 通过条件 | 状态 |
 | --- | --- | --- | --- | --- |
 | B0 / pi05_setup | openpi、ALOHA 与 LIBERO 本地源码已就绪；在服务器准备相同版本工作副本，记录驱动、GPU、依赖、磁盘缓存位置，建立模型与仿真两个环境 | 环境及版本记录 | 服务器源码、任务 assets 和初始状态齐全；GPU、离屏渲染可用 | 服务器模型环境安装及 CPU/GPU 检查已通过；仿真环境与离屏渲染待验证 |
-| B1 / pi05_inference | 加载官方检查点及 norm stats；先验证直接调用的合成观测推理，再用官方 simple client 检查服务连接，最后检查真实 LIBERO 观测的输入输出 | 推理日志、输入输出样例、首次及后续调用耗时 | 返回有限数值的 `(10,7)` 动作块；真实观测预处理与官方一致 | 检查点推理脚本已准备，待服务器执行；服务通信与真实观测检查待执行 |
+| B1 / pi05_inference | 加载官方检查点及 norm stats；先验证直接调用的合成观测推理，再用官方 simple client 检查服务连接，最后检查真实 LIBERO 观测的输入输出 | 推理日志、输入输出样例、首次及后续调用耗时 | 返回有限数值的 `(10,7)` 动作块；真实观测预处理与官方一致 | 官方权重加载及合成观测推理已通过；服务通信与真实观测检查待执行 |
 | B2 / pi05_libero_smoke | 运行 `libero_10` 每任务 1 个 episode，共 10 个；检查视频、动作执行和终止逻辑 | 十个任务的闭环记录与视频 | 无未解释的加载、通信或渲染错误；成功与失败均有可追溯记录 | 待执行 |
 | B3 / pi05_long_baseline | 补齐逐 episode 记录和视频唯一命名；按固定初始化运行 Long 每任务 50 次 | 500 个 episode 的记录、逐任务成功率、Long 总结果 | 预定 episode 全部有有效结果；基础设施异常已单列并处理 | 待执行 |
 | B4 / pi05_full_baseline | 用相同模型和执行协议完成 Spatial、Object、Goal，各 500 次；汇总四套 | 共 2000 个 episode 的结果及官方参考比较 | 四套逐任务计数可核对；总指标可从逐 episode 数据重算 | 待执行 |
@@ -70,7 +70,7 @@
 
 官方 compose 默认使用 host network、8000 端口和各服务单 GPU 申请；它没有自动实现八卡评测分片。后续 VeriVLA 使用 PyTorch 时可以通过独立进程接入，本阶段无需先把 π₀.₅ 转换为 PyTorch。
 
-**当前步骤：官方检查点加载与合成观测推理。** 在项目根目录执行：
+**官方检查点加载与合成观测推理（已通过）。** 复跑时在项目根目录执行：
 
 ```bash
 cd ~/canyon/H-JEPA-VerifierVLA
@@ -86,7 +86,22 @@ CUDA_VISIBLE_DEVICES=1 bash scripts/run_pi05_checkpoint.sh
 
 每次运行创建独立的 `outputs/pi05_checkpoint/run_*/` 目录：`report.json` 记录成功或失败、代码提交、设备与版本；`observation.npz` 保存输入；`actions.npy` 保存两次输出，预期形状为 `(2, 10, 7)`；`run.log` 保存加载和推理日志。通过条件为报告中的 `status: PASS`、`action_shape: [10, 7]`、`all_actions_finite: true`。
 
-本地已通过 Bash/Python 语法、CLI 帮助及新增下载中断回归检查；回归检查覆盖失败后保留临时文件、成功重试及完整缓存复用，运行无需 NVIDIA 显卡。完整权重下载和 GPU 推理待用户在服务器执行并回传结果。
+本地已通过 Bash/Python 语法、CLI 帮助及新增下载中断回归检查；回归检查覆盖失败后保留临时文件、成功重试及完整缓存复用，运行无需 NVIDIA 显卡。
+
+**服务器结果：pi05_libero_synthetic_seed7。** 2026-11-10，用户在 `h100-6f4b3` 的 GPU 1 上执行提交 `0b9d0ae9bf668e68a088c3d519af31ca275f9129`，报告为 `PASS`。下列数字来自用户回传的终端 JSON，副本保存在 [pi05_libero_synthetic_seed7.json](results/pi05_libero_synthetic_seed7.json)；远端原始输入、动作与日志文件尚未拉取到本地。
+
+| 项目 | 本次结果 |
+| --- | --- |
+| 检查点下载 | 2135.931 秒，约 35 分 36 秒 |
+| 模型与配套统计加载 | 32.339 秒 |
+| 第一次推理，含 JIT 编译 | 35.484 秒 |
+| 第二次推理 | 69.883 毫秒 |
+| 输出 | 两次均为 `(10, 7)`，数值全部有限 |
+| 远端产物 | `outputs/pi05_checkpoint/run_20261110T052519_353136Z/` |
+
+权重已缓存到 `/home/jovyan/.cache/openpi/openpi-assets/checkpoints/pi05_libero`，后续启动继续复用。日志中的 `Norm stats not found ... skipping` 对应项目 `assets/` 目录的可选查找；随后已明确从检查点 `assets/physical-intelligence/libero` 加载统计，与 `create_trained_policy` 的实现一致。首次缺少 `gsutil` 后使用的 gcsfs 下载路径已成功完成。
+
+本次结果确认真实官方权重可以接受合成输入并返回动作。第二次调用只有一个样本，69.883 毫秒不是稳定延迟 benchmark，也不能换算为机器人闭环控制频率；任务成功率仍待真实 LIBERO 闭环评测。
 
 以下命令是待执行模板，工作目录为服务器 `openpi/` 根目录，缓存路径需替换为实际路径。本项目已包含 ALOHA 与 LIBERO 源码，无需额外初始化子模块。
 
@@ -223,7 +238,7 @@ results/pi05_libero/<run_id>/
 - [x] 在 Linux GPU 服务器准备相同版本工作副本，安装统一模型环境并通过依赖与 CPU 模型检查。
 - [x] 验证 PyTorch 与 JAX 的 GPU 后端，在 GPU 1 上通过四项模型检查。
 - [ ] 准备独立的 LIBERO 仿真环境，验证 EGL 离屏渲染。
-- [ ] 加载官方 checkpoint 及配套 norm stats，在服务器 GPU 上完成推理检查。
+- [x] 加载官方 checkpoint 及配套 norm stats，在服务器 GPU 上通过合成观测推理检查。
 - [ ] 完成真实观测推理和十个任务的 smoke 闭环，核对两路图像及动作约定。
 - [ ] 完成逐 episode 记录、唯一视频命名与异常分类，保持策略执行行为一致。
 - [ ] 完成 Long 的 500 个有效 episode，保存逐任务结果和失败样例。

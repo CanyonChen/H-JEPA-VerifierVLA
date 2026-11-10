@@ -1,0 +1,36 @@
+{
+  "status": "PASS",
+  "config": "pi05_libero",
+  "checkpoint": "gs://openpi-assets/checkpoints/pi05_libero",
+  "observation_seed": 7,
+  "input_kind": "synthetic LIBERO observation from the upstream example",
+  "scope": "official checkpoint inference; no simulator or task success evaluation",
+  "python": "3.11.13",
+  "cuda_visible_devices": "1",
+  "output_dir": "/home/jovyan/canyon/H-JEPA-VerifierVLA/outputs/pi05_checkpoint/run_20261110T052519_353136Z",
+  "jax_devices": [
+    "cuda:0"
+  ],
+  "versions": {
+    "jax": "0.5.3",
+    "jaxlib": "0.5.3",
+    "flax": "0.10.2",
+    "numpy": "1.26.4"
+  },
+  "repo_commit": "0b9d0ae9bf668e68a088c3d519af31ca275f9129",
+  "download_or_cache_seconds": 2135.9309893921018,
+  "checkpoint_local_path": "/home/jovyan/.cache/openpi/openpi-assets/checkpoints/pi05_libero",
+  "norm_stats_path": "/home/jovyan/.cache/openpi/openpi-assets/checkpoints/pi05_libero/assets/physical-intelligence/libero/norm_stats.json",
+  "load_seconds": 32.339445140212774,
+  "action_shape": [
+    10,
+    7
+  ],
+  "all_actions_finite": true,
+  "inference_calls": 2,
+  "call_wall_seconds": [
+    35.484389513731,
+    0.06988311558961868
+  ],
+  "timing_scope": "whole policy.infer call including conversion to NumPy; first call includes JIT"
+}

@@ -74,7 +74,7 @@ CUDA_VISIBLE_DEVICES=1 env -u PYTHONPATH .venv/bin/python scripts/check_model_en
 - 服务器 CUDA 检查：2026-11-10 用户在 `h100-6f4b3` 使用 `CUDA_VISIBLE_DEVICES=1` 运行上述命令，输出 `device: cuda`，四项检查全部为 `PASS`。检查脚本中的 PyTorch CUDA 可用性与 JAX GPU 后端断言均通过，三个模型核心在同一进程中完成 GPU 计算。
 - GPU 编号：本次 JAX 输出 `jax_devices: ["cuda:0"]`，表示所选 GPU 1 在仅有一张可见 GPU 的进程内重新编号为 0。
 
-统一模型环境的安装、依赖检查与 CPU/GPU 兼容性检查已完成。服务器结果来自用户提供的终端输出，验证范围为随机权重模型计算及策略模块导入；尚未进行真实检查点推理或 benchmark。
+统一模型环境的安装、依赖检查与 CPU/GPU 兼容性检查已完成。本节环境检查的范围为随机权重模型计算及策略模块导入。另外，2026-11-10 用户回传结果确认官方 π₀.₅-LIBERO 检查点在 GPU 1 上完成两次合成观测推理，输出均为有限数值的 `(10, 7)` 动作块，记录见 [baseline 结果](i_baseline.md)和[回传 JSON](results/pi05_libero_synthetic_seed7.json)。真实 LIBERO 观测与闭环 benchmark 尚未执行。
 
 本地 CPU 检查使用同版本模型运行库和 PyTorch CPU 构建，使用 `--core-only` 跳过完整策略加载模块导入。该检查不能代替 Linux CUDA 环境验收或真实检查点推理。
 
