@@ -6,7 +6,7 @@
 
 ## 当前状态
 
-截至 2026-11-10，研究计划与本地源码准备已完成，三者共享的 uv 模型环境已在服务器安装，203 个包的依赖检查及 CPU、GPU 上的四项模型检查均通过；检查点推理、训练与评测待执行。联合验证模型尚待实现。
+截至 2026-11-10，研究计划与本地源码准备已完成，三者共享的 uv 模型环境已在服务器安装，203 个包的依赖检查及 CPU、GPU 上的四项模型检查均通过。官方 π₀.₅-LIBERO 检查点推理脚本已准备；检查点推理、训练与评测尚待执行。联合验证模型尚待实现。
 
 - `openpi/` 导入自上游提交 `215abfb217dbac7d5f1273282331b9b1866c0479`，作为本仓库的普通源码目录管理。
 - `openpi/third_party/` 包含 ALOHA 与 LIBERO 的完整源码，导入版本分别为 `d1dc83afd89ded4379851257fe5d85632d31d5ec`、`f78abd68ee283de9f9be3c8f7e2a9ad60246e95c`。三者内部的 Git 元数据已移除。
@@ -33,6 +33,7 @@ HTML 页面需克隆到本地后用浏览器打开，并保留配套素材的相
 ```text
 .
 ├── docs/                       研究与 baseline 实验计划
+├── scripts/                    模型环境与官方检查点验证入口
 ├── H-JEPA/
 │   ├── paper-latex/             论文 LaTeX、双语 Markdown 与图表
 │   ├── reading/                 论文阅读、代码核对与图表素材
@@ -72,6 +73,16 @@ source .venv/bin/activate
 ```
 
 统一使用 Python 3.11.13、PyTorch 2.7.1 和根目录 `uv.lock`。该环境包含 openpi、H-JEPA 模型核心与 VeriVLA 模型；兼容范围、验证记录和 GPU 检查命令见 [环境配置](docs/environment.md)。
+
+## 检查官方 π₀.₅-LIBERO 权重
+
+在服务器的项目根目录运行，按分配情况设置 GPU 编号：
+
+```bash
+CUDA_VISIBLE_DEVICES=1 bash scripts/run_pi05_checkpoint.sh
+```
+
+首次下载约 11.6 GiB 官方权重到 `~/.cache/openpi`，也可通过 `OPENPI_DATA_HOME` 指定缓存目录。脚本加载配套归一化统计，用合成 LIBERO 观测执行两次推理，检查 `(10, 7)` 动作输出，并将报告、输入、动作与日志写入 `outputs/pi05_checkpoint/run_*/`。本步检查真实权重的加载与推理接口；仿真任务成功率在后续阶段评测。运行细节见 [baseline 计划](docs/i_baseline.md)。
 
 ## 实验路线
 

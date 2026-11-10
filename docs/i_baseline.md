@@ -41,14 +41,14 @@
 | LIBERO 必需文件 | 已确认 `requirements.txt`、`bddl_files/`、`init_files/` 与 `assets/` 存在 |
 | Git 操作入口 | 在本项目根目录执行提交与更新；三个源码目录不再各自维护 Git 历史 |
 
-先前的 LIBERO 检出不完整与 ALOHA 子模块指针差异已在导入前解决。服务器工作副本与统一模型环境已准备，CPU 模型检查及 GPU 1 上的 PyTorch/JAX 模型检查均通过；下一步准备仿真环境、加载 checkpoint 及 norm stats，进行推理和 EGL 离屏渲染检查。
+先前的 LIBERO 检出不完整与 ALOHA 子模块指针差异已在导入前解决。服务器工作副本与统一模型环境已准备，CPU 模型检查及 GPU 1 上的 PyTorch/JAX 模型检查均通过；当前先加载 checkpoint 及 norm stats，验证合成观测推理，再准备仿真环境、真实观测推理与 EGL 离屏渲染检查。
 
 **执行计划表。**
 
 | 步骤 / 标识 | 要做的工作 | 产物 | 通过条件 | 状态 |
 | --- | --- | --- | --- | --- |
 | B0 / pi05_setup | openpi、ALOHA 与 LIBERO 本地源码已就绪；在服务器准备相同版本工作副本，记录驱动、GPU、依赖、磁盘缓存位置，建立模型与仿真两个环境 | 环境及版本记录 | 服务器源码、任务 assets 和初始状态齐全；GPU、离屏渲染可用 | 服务器模型环境安装及 CPU/GPU 检查已通过；仿真环境与离屏渲染待验证 |
-| B1 / pi05_inference | 加载官方检查点及 norm stats；先用官方 simple client 检查连接，再使用真实 LIBERO 观测检查输入输出 | 推理日志、输入输出样例、冷启动与稳定推理耗时 | 返回有限数值的 `(10,7)` 动作块；真实观测预处理与官方一致 | 待执行 |
+| B1 / pi05_inference | 加载官方检查点及 norm stats；先验证直接调用的合成观测推理，再用官方 simple client 检查服务连接，最后检查真实 LIBERO 观测的输入输出 | 推理日志、输入输出样例、首次及后续调用耗时 | 返回有限数值的 `(10,7)` 动作块；真实观测预处理与官方一致 | 检查点推理脚本已准备，待服务器执行；服务通信与真实观测检查待执行 |
 | B2 / pi05_libero_smoke | 运行 `libero_10` 每任务 1 个 episode，共 10 个；检查视频、动作执行和终止逻辑 | 十个任务的闭环记录与视频 | 无未解释的加载、通信或渲染错误；成功与失败均有可追溯记录 | 待执行 |
 | B3 / pi05_long_baseline | 补齐逐 episode 记录和视频唯一命名；按固定初始化运行 Long 每任务 50 次 | 500 个 episode 的记录、逐任务成功率、Long 总结果 | 预定 episode 全部有有效结果；基础设施异常已单列并处理 | 待执行 |
 | B4 / pi05_full_baseline | 用相同模型和执行协议完成 Spatial、Object、Goal，各 500 次；汇总四套 | 共 2000 个 episode 的结果及官方参考比较 | 四套逐任务计数可核对；总指标可从逐 episode 数据重算 | 待执行 |
@@ -70,6 +70,24 @@
 
 官方 compose 默认使用 host network、8000 端口和各服务单 GPU 申请；它没有自动实现八卡评测分片。后续 VeriVLA 使用 PyTorch 时可以通过独立进程接入，本阶段无需先把 π₀.₅ 转换为 PyTorch。
 
+**当前步骤：官方检查点加载与合成观测推理。** 在项目根目录执行：
+
+```bash
+cd ~/canyon/H-JEPA-VerifierVLA
+git pull --ff-only origin main
+CUDA_VISIBLE_DEVICES=1 bash scripts/run_pi05_checkpoint.sh
+```
+
+脚本调用上游 `create_trained_policy`，加载 `pi05_libero` 官方 JAX 检查点及其 `assets/physical-intelligence/libero/norm_stats.json`。2026-11-10 读取的[官方 GCS 文件清单](https://storage.googleapis.com/storage/v1/b/openpi-assets/o?prefix=checkpoints%2Fpi05_libero%2F&maxResults=1000&fields=nextPageToken%2Citems%28name%2Csize%29)包含 16 个文件，共 12,439,085,481 字节，约 11.6 GiB；首次运行还会按上游流程获取 tokenizer。
+
+缓存沿用 `OPENPI_DATA_HOME`，未设置时使用 `~/.cache/openpi`。可在命令前设置该变量以使用容量足够的缓存盘。已下载完整检查点时，可传入 `--checkpoint /absolute/path/to/pi05_libero`。完整缓存会复用；下载失败保留 `.partial` 目录并抛出原异常，避免将未完成缓存发布为正式目录。本项目为上游 `_download_fsspec` 补上了后台任务的 `future.result()` 异常传递。
+
+输入使用官方 `make_libero_example()`：两张 224×224 RGB 合成图像、8 维合成状态以及提示词 `do something`，NumPy seed 默认为 7。相同观测调用两次，JAX 策略随机数沿用官方默认行为；第一次包含 JIT 编译，第二次记录后续调用耗时。这两个耗时用于检查运行过程，不作为吞吐 benchmark。
+
+每次运行创建独立的 `outputs/pi05_checkpoint/run_*/` 目录：`report.json` 记录成功或失败、代码提交、设备与版本；`observation.npz` 保存输入；`actions.npy` 保存两次输出，预期形状为 `(2, 10, 7)`；`run.log` 保存加载和推理日志。通过条件为报告中的 `status: PASS`、`action_shape: [10, 7]`、`all_actions_finite: true`。
+
+本地已通过 Bash/Python 语法、CLI 帮助及新增下载中断回归检查；回归检查覆盖失败后保留临时文件、成功重试及完整缓存复用，运行无需 NVIDIA 显卡。完整权重下载和 GPU 推理待用户在服务器执行并回传结果。
+
 以下命令是待执行模板，工作目录为服务器 `openpi/` 根目录，缓存路径需替换为实际路径。本项目已包含 ALOHA 与 LIBERO 源码，无需额外初始化子模块。
 
 ```bash
@@ -83,17 +101,19 @@ MUJOCO_GL=egl docker compose -f examples/libero/compose.yml up --build --abort-o
 
 该命令每个任务运行一次，总计 10 个 episodes。真正的单任务/单 episode 调试需要后续增加筛选入口，不能把 `num-trials-per-task=1` 解释成整套只运行一次。正式运行改为每任务 50 次，并在 B3 前完成下面的记录改动。
 
-若采用已安装好的原生双环境，模型侧的等价入口为：
+完成上述检查后，原生模型服务从项目根目录使用统一环境启动：
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 uv run scripts/serve_policy.py \
+cd ~/canyon/H-JEPA-VerifierVLA
+CUDA_VISIBLE_DEVICES=1 XLA_PYTHON_CLIENT_PREALLOCATE=false JAX_PLATFORMS=cuda \
+  env -u PYTHONPATH .venv/bin/python openpi/scripts/serve_policy.py \
   --port 8000 \
   policy:checkpoint \
   --policy.config=pi05_libero \
   --policy.dir=gs://openpi-assets/checkpoints/pi05_libero
 ```
 
-在另一个模型环境终端，可使用 `uv run examples/simple_client/main.py --env LIBERO --host 127.0.0.1 --port 8000` 检查通信。随机输入推理不代表闭环评测通过。正式评测前重新启动服务，避免调试请求改变正式采样序列。完整环境命令以[官方 LIBERO 安装说明](../openpi/examples/libero/README.md)为准。
+在另一个终端的项目根目录，可使用 `env -u PYTHONPATH .venv/bin/python openpi/examples/simple_client/main.py --env LIBERO --host 127.0.0.1 --port 8000` 检查通信。随机输入推理不代表闭环评测通过。正式评测前重新启动服务，避免调试请求改变正式采样序列。完整环境命令以[官方 LIBERO 安装说明](../openpi/examples/libero/README.md)为准。
 
 **输入、输出与控制约定。** 保持以下已核对的默认行为，先建立可比较的结果。
 
