@@ -24,7 +24,7 @@ openpi 固定的 LeRobot 要求 `gymnasium==0.29.1`，H-JEPA 原版完整环境�
 
 根项目以 editable 方式安装 `openpi`、`openpi-client`、`h_jepa` 和 `verifier`。H-JEPA 中三处依赖工作目录的导入改为包导入，并在其上游包配置中补入 `h_jepa` 模块。网络实现与损失函数保持原有计算。VeriVLA 源码与许可证保留在 `VeriVLA/repository/`，来源见该目录的 `UPSTREAM.md`。
 
-VeriVLA 此版本公开模型结构，尚未提供完整训练代码、LIBERO / RoboTwin 集成。环境配置不代表这些功能已实现。LIBERO 客户端后续沿用独立仿真环境，通过模型服务通信；其旧版 Python / PyTorch 依赖不安装到主模型环境中。
+VeriVLA 此版本公开模型结构，尚未提供完整训练代码、LIBERO / RoboTwin 集成。环境配置不代表这些功能已实现。LIBERO 客户端使用独立的 `.venv-libero`，通过模型服务通信；其旧版 Python / PyTorch 依赖不安装到主模型环境中。安装、CPU 版 PyTorch 的用途与 EGL 检查见 [LIBERO 安装与检查](libero_setup.md)。
 
 ## 服务器安装
 

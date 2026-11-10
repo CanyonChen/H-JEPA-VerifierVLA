@@ -19,6 +19,7 @@
 | 研究目标、假设与 P0–P5 实验路线 | [长程动作验证实验计划](docs/plan.md) |
 | π₀.₅ 检查点、环境、启动命令与评测协议 | [第一阶段 baseline 复现计划](docs/i_baseline.md) |
 | 统一 uv 模型环境、安装与兼容性验证 | [环境配置](docs/environment.md) |
+| LIBERO 仿真环境、EGL 和真实观测通信 | [LIBERO 安装与检查](docs/libero_setup.md) |
 | H-JEPA 中英双语论文 | [H-JEPA.md](H-JEPA/paper-latex/H-JEPA.md) |
 | H-JEPA 代码与运行说明 | [上游代码 README](H-JEPA/repository-main/README.md) |
 | H-JEPA 方法讲解幻灯片 | [deck.html](H-JEPA/repo/deck.html) |
@@ -83,6 +84,10 @@ CUDA_VISIBLE_DEVICES=1 bash scripts/run_pi05_checkpoint.sh
 ```
 
 首次下载约 11.6 GiB 官方权重到 `~/.cache/openpi`，也可通过 `OPENPI_DATA_HOME` 指定缓存目录。脚本加载配套归一化统计，用合成 LIBERO 观测执行两次推理，检查 `(10, 7)` 动作输出，并将报告、输入、动作与日志写入 `outputs/pi05_checkpoint/run_*/`。本步检查真实权重的加载与推理接口；仿真任务成功率在后续阶段评测。运行细节见 [baseline 计划](docs/i_baseline.md)。
+
+## 检查 LIBERO 渲染与真实观测
+
+官方检查点推理通过后，按 [LIBERO 安装与检查](docs/libero_setup.md)安装独立的 `.venv-libero`，检查 EGL 相机图像，启动现有 `.venv` 中的模型服务，再发送真实观测并执行最多 5 个策略动作。客户端使用 CPU 版 PyTorch 读取初始状态，模型推理与 EGL 渲染仍使用 GPU。该接口检查的服务器结果待回传，完整 episode 和成功率评测随后进行。
 
 ## 实验路线
 
