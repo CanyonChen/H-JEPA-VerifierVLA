@@ -58,7 +58,7 @@ source .venv/bin/activate
 
 ```bash
 cd ~/canyon/H-JEPA-VerifierVLA
-CUDA_VISIBLE_DEVICES=0 env -u PYTHONPATH .venv/bin/python scripts/check_model_env.py --device cuda
+CUDA_VISIBLE_DEVICES=1 env -u PYTHONPATH .venv/bin/python scripts/check_model_env.py --device cuda
 ```
 
 检查脚本关闭本进程的 JAX 显存预分配，明确检查 PyTorch CUDA 和 JAX GPU 后端，失败时返回非零退出码。它使用小规模随机权重，不下载 checkpoint 或数据，也不执行仿真评测。完整检查全部通过时，末尾 JSON 中四个检查项均为 `PASS`。
@@ -71,8 +71,11 @@ CUDA_VISIBLE_DEVICES=0 env -u PYTHONPATH .venv/bin/python scripts/check_model_en
 - Linux x86_64 / glibc 2.39 安装预演：2026-11-10 在本地模拟不同下载索引，`uv sync --frozen --dry-run --offline --python-platform x86_64-manylinux_2_39` 通过，计划安装锁定的 203 个包，锁文件哈希保持不变；此预演未实际下载或安装 Linux 包。
 - 服务器依赖安装：2026-11-10 用户回传的 `h100-6f4b3` 终端日志确认安装完成，`uv pip check` 检查 203 个包并报告全部兼容。服务器使用 Python 3.11.13、uv 0.13.7、glibc 2.39；下载超时及 `--locked` 校验阻塞已在调整下载参数、改用 `--frozen` 后越过。
 - 服务器 CPU 模型检查：同次用户日志中，`openpi_gemma_forward`、`openpi_policy_setup_import`、`hjepa_two_level_forward_backward`、`verivla_cached_candidate_ranking` 四项均为 `PASS`。日志列出的运行库版本与上表一致，JAX 设备为 `TFRT_CPU_0`；检查脚本明确选择了 CPU 后端。
-- 服务器 CUDA 检查：待执行。上述结果来自用户提供的服务器输出，验证范围为同一环境中的随机权重模型计算及策略模块导入；尚未进行真实检查点推理或 benchmark。
+- 服务器 CUDA 检查：2026-11-10 用户在 `h100-6f4b3` 使用 `CUDA_VISIBLE_DEVICES=1` 运行上述命令，输出 `device: cuda`，四项检查全部为 `PASS`。检查脚本中的 PyTorch CUDA 可用性与 JAX GPU 后端断言均通过，三个模型核心在同一进程中完成 GPU 计算。
+- GPU 编号：本次 JAX 输出 `jax_devices: ["cuda:0"]`，表示所选 GPU 1 在仅有一张可见 GPU 的进程内重新编号为 0。
+
+统一模型环境的安装、依赖检查与 CPU/GPU 兼容性检查已完成。服务器结果来自用户提供的终端输出，验证范围为随机权重模型计算及策略模块导入；尚未进行真实检查点推理或 benchmark。
 
 本地 CPU 检查使用同版本模型运行库和 PyTorch CPU 构建，使用 `--core-only` 跳过完整策略加载模块导入。该检查不能代替 Linux CUDA 环境验收或真实检查点推理。
 
-参考：[uv 锁文件与同步](https://docs.astral.sh/uv/concepts/projects/sync/)、[uv 下载参数](https://docs.astral.sh/uv/reference/environment/#uv_http_timeout)、[openpi 安装说明](../openpi/README.md#installation)、[LeRobot 固定依赖](https://github.com/huggingface/lerobot/blob/0cf864870cf29f4738d3ade893e6fd13fbd7cdb5/pyproject.toml)、[H-JEPA 完整依赖](../H-JEPA/repository-main/pyproject.toml)。
+参考：[uv 锁文件与同步](https://docs.astral.sh/uv/concepts/projects/sync/)、[uv 下载参数](https://docs.astral.sh/uv/reference/environment/#uv_http_timeout)、[CUDA 可见设备与编号](https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/environment-variables.html)、[openpi 安装说明](../openpi/README.md#installation)、[LeRobot 固定依赖](https://github.com/huggingface/lerobot/blob/0cf864870cf29f4738d3ade893e6fd13fbd7cdb5/pyproject.toml)、[H-JEPA 完整依赖](../H-JEPA/repository-main/pyproject.toml)。
