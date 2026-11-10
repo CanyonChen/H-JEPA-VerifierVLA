@@ -39,6 +39,8 @@ source .venv/bin/activate
 
 脚本从根目录执行 `uv sync --locked`，创建 `.venv/`、安装锁定依赖，随后执行 `uv pip check` 和 CPU 模型检查。安装命令设置 `UV_PYTHON_DOWNLOADS=automatic`，在缺少 `.python-version` 指定的 Python 3.11.13 时自动下载，覆盖服务器的 `never` 下载设置；该设置仅对本次安装命令生效。`GIT_LFS_SKIP_SMUDGE=1` 遵循 openpi 的 LeRobot 安装要求；`env -u PYTHONPATH` 防止已有 ROS / 其他项目路径混入本次安装和检查。
 
+下载时设置 `UV_HTTP_TIMEOUT=600`（HTTP 读取超时，秒）和 `UV_CONCURRENT_DOWNLOADS=4`，为服务器镜像下载较大的 GPU 安装包留出更长等待时间，并限制并发请求数。若安装因下载超时中断，直接重新执行上述脚本，复用现有 `.venv/` 和 uv 缓存。仓库锁文件使用官方 PyPI；服务器日志中出现的 Sangfor 镜像地址需要结合服务器的下载源或转发配置判断。延长超时后若仍失败，下一步检查服务器到该镜像的连通性与响应。
+
 模型环境统一在根目录管理。后续从根目录使用 `uv run --locked ...` 或激活 `.venv/` 后使用 `python ...`；在 `openpi/` 子目录执行其自己的 `uv sync` 会转为管理另一套项目环境。
 
 ## 验证
@@ -64,8 +66,9 @@ CUDA_VISIBLE_DEVICES=0 env -u PYTHONPATH .venv/bin/python scripts/check_model_en
 - Linux x86_64 / Python 3.11 依赖解析：已通过，锁定 203 个包。
 - 本地 Windows CPU 模型核心检查：2026-11-09 已通过；Python 3.11.13、PyTorch 2.7.1+cpu、torchvision 0.22.1+cpu、JAX 0.5.3、Flax 0.10.2、Transformers 4.53.2、NumPy 1.26.4。三个模型在同一进程中的小规模计算均通过。
 - 根模型包与 H-JEPA 包构建、模型模块和许可证入包检查、安装脚本语法、锁文件离线一致性检查：已通过。
-- 服务器完整依赖安装、策略模块导入与 CUDA 检查：待用户在服务器执行。
+- 服务器安装：2026-11-10 用户日志确认 Python 3.11.13 与 `.venv/` 已创建，LeRobot 固定提交已获取；安装停在 Sangfor 镜像的 PyTorch 下载超时。已调整读取超时和下载并发，待服务器重试。
+- 服务器完整依赖安装、策略模块导入与 CUDA 检查：尚未完成。
 
 本地 CPU 检查使用同版本模型运行库和 PyTorch CPU 构建，使用 `--core-only` 跳过完整策略加载模块导入。该检查不能代替 Linux CUDA 环境验收或真实检查点推理。
 
-参考：[uv 锁文件与同步](https://docs.astral.sh/uv/concepts/projects/sync/)、[openpi 安装说明](../openpi/README.md#installation)、[LeRobot 固定依赖](https://github.com/huggingface/lerobot/blob/0cf864870cf29f4738d3ade893e6fd13fbd7cdb5/pyproject.toml)、[H-JEPA 完整依赖](../H-JEPA/repository-main/pyproject.toml)。
+参考：[uv 锁文件与同步](https://docs.astral.sh/uv/concepts/projects/sync/)、[uv 下载参数](https://docs.astral.sh/uv/reference/environment/#uv_http_timeout)、[openpi 安装说明](../openpi/README.md#installation)、[LeRobot 固定依赖](https://github.com/huggingface/lerobot/blob/0cf864870cf29f4738d3ade893e6fd13fbd7cdb5/pyproject.toml)、[H-JEPA 完整依赖](../H-JEPA/repository-main/pyproject.toml)。
