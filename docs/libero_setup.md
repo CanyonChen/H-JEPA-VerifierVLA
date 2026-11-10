@@ -29,7 +29,7 @@ git pull --ff-only origin main &&
 MUJOCO_EGL_DEVICE_ID=1 bash scripts/setup_libero_env.sh
 ```
 
-安装脚本自动获取 Python 3.8.20，使用提交的锁文件执行 `uv sync --frozen`，随后执行 `uv pip check` 和仅渲染检查。下载设置沿用模型环境的 `UV_PYTHON_DOWNLOADS=automatic`、`UV_HTTP_TIMEOUT=600`、`UV_CONCURRENT_DOWNLOADS=4`。下载中断后可以重跑同一命令，复用 uv 缓存。
+安装脚本自动获取 Python 3.8.20，使用提交的锁文件执行 `uv sync --frozen --reinstall-package libero`，重建 LIBERO 的 editable 安装，随后执行 `uv pip check`、隔离进程中的包导入检查和仅渲染检查。定向重装用于修复此前生成的 LIBERO 空壳包；其他已安装依赖继续复用。下载设置沿用模型环境的 `UV_PYTHON_DOWNLOADS=automatic`、`UV_HTTP_TIMEOUT=600`、`UV_CONCURRENT_DOWNLOADS=4`。下载中断后可以重跑同一命令，复用 uv 缓存。
 
 检查入口在导入 LIBERO 前写入 `.venv-libero/libero-config/config.yaml`，指向仓库自带的 BDDL、初始状态与模型资源，避免交互式询问路径。`data/libero/datasets/` 仅作为预留路径创建；这一步不下载训练数据集。
 
@@ -107,4 +107,18 @@ MUJOCO_EGL_DEVICE_ID=1 bash scripts/run_libero_check.sh --port 8001 --task-id 1
 - Python 3.8 / websockets 13.1 客户端与 Python 3.11 / websockets 15.0.1 服务端通过本机回环通信，完整传输两张图像、状态和文字，并收到预期的 `(10, 7)` 动作。该检查使用探针策略，没有加载模型权重。
 - Python 3.8 语法及检查入口帮助、三个 Bash 脚本语法、服务参数与上游 Tyro 数据类定义的一致性检查通过。LIBERO 和 `openpi-client` 的本地 editable 包构建通过。
 
-本地验证没有运行 NVIDIA GPU、EGL 或真实模型服务推理；服务器安装及上述两个运行模式的结果仍待回传。根模型环境的 `pyproject.toml` 与 `uv.lock` 未修改。
+本地验证没有运行 NVIDIA GPU、EGL 或真实模型服务推理。服务器 74 个包的依赖检查已通过；首次运行在 LIBERO 导入处失败，EGL 和真实观测通信尚未开始，修复后待服务器重跑。根模型环境的 `pyproject.toml` 与 `uv.lock` 未修改。
+
+## LIBERO 安装导入失败与修复
+
+2026-11-10，用户回传的服务器日志显示 Python 3.8.20、74 个包的依赖检查通过，但运行 `outputs/libero_check/run_20261110T075210_873786Z` 在 `from libero.libero import benchmark` 处报 `ModuleNotFoundError: No module named 'libero'`。该失败发生在创建仿真环境之前，不能据此判断 EGL 是否可用。
+
+本地复现确认：外层 `libero/` 缺少 `__init__.py`，上游 `setup.py` 的 `find_packages()` 返回空列表，安装后有发行包元数据，却没有可导入模块。这符合 [Setuptools 的包发现规则](https://setuptools.pypa.io/en/latest/userguide/package_discovery.html)。先前本地状态读取检查主动加入了源码路径，只证明源码可以执行，没有验证 editable 安装的导入行为，因而漏掉了此问题。
+
+修复补入外层包标记，并在安装脚本中定向重建 LIBERO、执行 `python -I` 导入检查。新增 [安装回归检查](../tests/test_libero_installation.py)先在修复前复现同一异常，修复后从临时工作目录启动隔离 Python 进程，不注入源码搜索路径，实际导入安装包并读取全部 500 个初始状态；该检查和两项观测测试均通过。锁文件一致性、Linux 冻结安装预演与 Bash 语法检查也通过。
+
+在安装好的 LIBERO 环境中复跑回归检查：
+
+```bash
+.venv-libero/bin/python -m unittest discover -s tests -p 'test_libero_*.py' -v
+```

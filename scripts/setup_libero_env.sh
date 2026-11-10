@@ -9,7 +9,9 @@ env -u PYTHONPATH \
     UV_PYTHON_DOWNLOADS=automatic \
     UV_HTTP_TIMEOUT=600 \
     UV_CONCURRENT_DOWNLOADS=4 \
-    uv sync --project envs/libero --frozen
+    uv sync --project envs/libero --frozen --reinstall-package libero
 env -u PYTHONPATH uv pip check --python .venv-libero/bin/python
+env -u PYTHONPATH .venv-libero/bin/python -I -c \
+    'import libero, openpi_client; print("LIBERO package import: PASS (" + libero.__file__ + ")")'
 
 bash scripts/run_libero_check.sh --render-only

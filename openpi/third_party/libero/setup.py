@@ -13,6 +13,7 @@ long_description = "".join(lines)
 
 setup(
     name="libero",
+    # The outer libero/__init__.py makes this tree discoverable for editable installs.
     packages=[package for package in find_packages() if package.startswith("libero")],
     install_requires=[],
     eager_resources=["*"],

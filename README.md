@@ -87,7 +87,7 @@ CUDA_VISIBLE_DEVICES=1 bash scripts/run_pi05_checkpoint.sh
 
 ## 检查 LIBERO 渲染与真实观测
 
-官方检查点推理通过后，按 [LIBERO 安装与检查](docs/libero_setup.md)安装独立的 `.venv-libero`，检查 EGL 相机图像，启动现有 `.venv` 中的模型服务，再发送真实观测并执行最多 5 个策略动作。客户端使用 CPU 版 PyTorch 读取初始状态，模型推理与 EGL 渲染仍使用 GPU。该接口检查的服务器结果待回传，完整 episode 和成功率评测随后进行。
+官方检查点推理通过后，按 [LIBERO 安装与检查](docs/libero_setup.md)安装独立的 `.venv-libero`，检查 EGL 相机图像，启动现有 `.venv` 中的模型服务，再发送真实观测并执行最多 5 个策略动作。客户端使用 CPU 版 PyTorch 读取初始状态，模型推理与 EGL 渲染仍使用 GPU。服务器依赖检查已通过；LIBERO 导入修复后的 EGL 与真实观测检查待完成，完整 episode 和成功率评测随后进行。
 
 ## 实验路线
 
