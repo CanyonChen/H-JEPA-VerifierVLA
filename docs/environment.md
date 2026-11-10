@@ -69,8 +69,9 @@ CUDA_VISIBLE_DEVICES=0 env -u PYTHONPATH .venv/bin/python scripts/check_model_en
 - 本地 Windows CPU 模型核心检查：2026-11-09 已通过；Python 3.11.13、PyTorch 2.7.1+cpu、torchvision 0.22.1+cpu、JAX 0.5.3、Flax 0.10.2、Transformers 4.53.2、NumPy 1.26.4。三个模型在同一进程中的小规模计算均通过。
 - 根模型包与 H-JEPA 包构建、模型模块和许可证入包检查、安装脚本语法、锁文件离线一致性检查：已通过。
 - Linux x86_64 / glibc 2.39 安装预演：2026-11-10 在本地模拟不同下载索引，`uv sync --frozen --dry-run --offline --python-platform x86_64-manylinux_2_39` 通过，计划安装锁定的 203 个包，锁文件哈希保持不变；此预演未实际下载或安装 Linux 包。
-- 服务器安装：2026-11-10 用户日志确认 Python 3.11.13 与 `.venv/` 已创建，LeRobot 固定提交已获取；先遇到 Sangfor 镜像的 PyTorch 下载超时，调整下载参数后，重试停在 `--locked` 一致性校验。服务器 uv 0.13.7 与本地版本相同，工作区干净，glibc 为 2.39。本地锁文件检查通过，服务器触发重新解析的具体配置差异尚未确认；安装脚本已改为 `--frozen`，待服务器重试。
-- 服务器完整依赖安装、策略模块导入与 CUDA 检查：尚未完成。
+- 服务器依赖安装：2026-11-10 用户回传的 `h100-6f4b3` 终端日志确认安装完成，`uv pip check` 检查 203 个包并报告全部兼容。服务器使用 Python 3.11.13、uv 0.13.7、glibc 2.39；下载超时及 `--locked` 校验阻塞已在调整下载参数、改用 `--frozen` 后越过。
+- 服务器 CPU 模型检查：同次用户日志中，`openpi_gemma_forward`、`openpi_policy_setup_import`、`hjepa_two_level_forward_backward`、`verivla_cached_candidate_ranking` 四项均为 `PASS`。日志列出的运行库版本与上表一致，JAX 设备为 `TFRT_CPU_0`；检查脚本明确选择了 CPU 后端。
+- 服务器 CUDA 检查：待执行。上述结果来自用户提供的服务器输出，验证范围为同一环境中的随机权重模型计算及策略模块导入；尚未进行真实检查点推理或 benchmark。
 
 本地 CPU 检查使用同版本模型运行库和 PyTorch CPU 构建，使用 `--core-only` 跳过完整策略加载模块导入。该检查不能代替 Linux CUDA 环境验收或真实检查点推理。
 
