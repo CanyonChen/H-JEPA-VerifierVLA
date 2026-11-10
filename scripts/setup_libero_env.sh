@@ -12,6 +12,6 @@ env -u PYTHONPATH \
     uv sync --project envs/libero --frozen --reinstall-package libero
 env -u PYTHONPATH uv pip check --python .venv-libero/bin/python
 env -u PYTHONPATH .venv-libero/bin/python -I -c \
-    'import libero, openpi_client; print("LIBERO package import: PASS (" + libero.__file__ + ")")'
+    'import libero, openpi_client; from bddl import parsing; print("LIBERO and BDDL package imports: PASS (" + libero.__file__ + ")")'
 
 bash scripts/run_libero_check.sh --render-only

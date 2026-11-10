@@ -16,6 +16,7 @@
 - 官方示例使用 `torch==1.11.0+cu113`，这里改为 `torch==1.11.0+cpu`。这条运行路径通过 PyTorch 读取仓库自带的初始状态，不在仿真进程中执行神经网络推理，因此不需要给客户端再安装一套旧 CUDA 运行库。
 - MuJoCo 物理步进与 PyTorch 无关；相机通过 OpenGL/EGL 使用 NVIDIA 驱动渲染。CPU 版 PyTorch 不会把 EGL 渲染改成 CPU 渲染。
 - 安装仿真运行依赖与 `openpi-client`，不安装 LIBERO 训练入口所需的完整训练栈。客户端锁定 `websockets==13.1`，保持 Python 3.8 支持；模型服务沿用根锁文件中的 15.0.1。
+- 显式安装 LIBERO 原版依赖表中的 `future==0.18.2`；`bddl==1.0.1` 的运行代码使用它，但没有将其声明为安装依赖。
 
 这些是本项目的环境适配，不是未经修改的官方完整环境。版本依据见仓库中的[官方示例依赖](../openpi/examples/libero/requirements.txt)、[初始状态加载代码](../openpi/third_party/libero/libero/libero/benchmark/__init__.py)及[官方评测入口](../openpi/examples/libero/main.py)。
 
@@ -29,7 +30,7 @@ git pull --ff-only origin main &&
 MUJOCO_EGL_DEVICE_ID=1 bash scripts/setup_libero_env.sh
 ```
 
-安装脚本自动获取 Python 3.8.20，使用提交的锁文件执行 `uv sync --frozen --reinstall-package libero`，重建 LIBERO 的 editable 安装，随后执行 `uv pip check`、隔离进程中的包导入检查和仅渲染检查。定向重装用于修复此前生成的 LIBERO 空壳包；其他已安装依赖继续复用。下载设置沿用模型环境的 `UV_PYTHON_DOWNLOADS=automatic`、`UV_HTTP_TIMEOUT=600`、`UV_CONCURRENT_DOWNLOADS=4`。下载中断后可以重跑同一命令，复用 uv 缓存。
+安装脚本自动获取 Python 3.8.20，使用提交的锁文件执行 `uv sync --frozen --reinstall-package libero`，重建 LIBERO 的 editable 安装，随后执行 `uv pip check`、隔离进程中的 LIBERO / BDDL 导入检查和仅渲染检查。定向重装用于修复此前生成的 LIBERO 空壳包；其他已安装依赖继续复用。下载设置沿用模型环境的 `UV_PYTHON_DOWNLOADS=automatic`、`UV_HTTP_TIMEOUT=600`、`UV_CONCURRENT_DOWNLOADS=4`。下载中断后可以重跑同一命令，复用 uv 缓存。
 
 检查入口在导入 LIBERO 前写入 `.venv-libero/libero-config/config.yaml`，指向仓库自带的 BDDL、初始状态与模型资源，避免交互式询问路径。`data/libero/datasets/` 仅作为预留路径创建；这一步不下载训练数据集。
 
@@ -101,13 +102,13 @@ MUJOCO_EGL_DEVICE_ID=1 bash scripts/run_libero_check.sh --port 8001 --task-id 1
 
 2026-11-10 本地 Windows CPU 验证结果：
 
-- Linux x86_64 / glibc 2.39 的冻结安装预演通过；锁文件包含 75 个包条目，计划实际安装 74 个包。预演不等于 Linux 安装成功。
+- Linux x86_64 / glibc 2.39 的冻结安装预演通过；补齐 `future` 后，锁文件包含 76 个包条目，计划实际安装 75 个包。预演不等于 Linux 安装成功。
 - Python 3.8.20 / PyTorch 1.11.0+cpu 成功读取 `libero_10` 全部 10 个任务、每任务 50 个初始状态，数值全部有限；NumPy 1.22.4 与 Numba 0.53.1 的 CPU JIT 小计算通过。
 - 两项观测测试在 Python 3.8 和 3.11 中均通过，覆盖图像方向、状态排列、四元数转换、缩放与消息序列化。复跑命令为 `python -m unittest discover -s tests -p 'test_libero_observation.py' -v`。
 - Python 3.8 / websockets 13.1 客户端与 Python 3.11 / websockets 15.0.1 服务端通过本机回环通信，完整传输两张图像、状态和文字，并收到预期的 `(10, 7)` 动作。该检查使用探针策略，没有加载模型权重。
 - Python 3.8 语法及检查入口帮助、三个 Bash 脚本语法、服务参数与上游 Tyro 数据类定义的一致性检查通过。LIBERO 和 `openpi-client` 的本地 editable 包构建通过。
 
-本地验证没有运行 NVIDIA GPU、EGL 或真实模型服务推理。服务器 74 个包的依赖检查已通过；首次运行在 LIBERO 导入处失败，EGL 和真实观测通信尚未开始，修复后待服务器重跑。根模型环境的 `pyproject.toml` 与 `uv.lock` 未修改。
+本地验证没有运行 NVIDIA GPU、EGL 或真实模型服务推理。服务器已通过初版 74 个包的依赖检查及修复后的 LIBERO 包导入；后续在 BDDL 导入处发现缺少 `future`，补齐后待服务器重跑。EGL 和真实观测通信尚未开始。根模型环境的 `pyproject.toml` 与 `uv.lock` 未修改。
 
 ## LIBERO 安装导入失败与修复
 
@@ -122,3 +123,13 @@ MUJOCO_EGL_DEVICE_ID=1 bash scripts/run_libero_check.sh --port 8001 --task-id 1
 ```bash
 .venv-libero/bin/python -m unittest discover -s tests -p 'test_libero_*.py' -v
 ```
+
+## BDDL 缺少 future 的修复
+
+2026-11-10，服务器运行 `outputs/libero_check/run_20261110T084632_850202Z` 已打印 `LIBERO package import: PASS`，随后在导入 `OffScreenRenderEnv` 的依赖链中，由 `bddl.backend_abc` 报 `ModuleNotFoundError: No module named 'future'`。此时仍未创建仿真环境。
+
+`future==0.18.2` 原本列在 [LIBERO 官方依赖表](../openpi/third_party/libero/requirements.txt)，初版仿真运行依赖子集漏掉了它。BDDL 1.0.1 的安装元数据只声明 pytest、numpy、networkx、jupytext，没有声明代码实际使用的 `future`，所以 `uv pip check` 无法发现该遗漏。修复将原版版本补回仿真环境，并把安装前置检查扩展到 `bddl.parsing`；安装回归检查同时解析 LIBERO-10 的十个真实任务文件。
+
+本地验证先在修复前复现相同的 `ModuleNotFoundError`，补齐 `future` 后三项回归全部通过。额外的 CPU 检查实际导入 `OffScreenRenderEnv` 及其依赖链，使用 LIBERO 解析器读取十个任务，确认任务类型均已注册；未创建仿真环境。锁文件只新增 `future`，其余依赖版本保持原样，离线锁文件校验与 Linux 冻结安装预演通过。
+
+完整导入检查的本地条件是 Windows / Python 3.8.20、robosuite 1.4.1、MuJoCo 3.2.3。仅在忽略的 `.venv-libero-check` 内，配置 `MUJOCO_GPU_RENDERING=False`、`MUJOCO_GL=disable`，并将 MuJoCo 自带 DLL 放到 robosuite 旧版 Windows 加载路径，避免触发图形设备初始化。此配置用于本地导入验证；服务器入口继续使用 EGL，实际 GPU 渲染仍待服务器检查。

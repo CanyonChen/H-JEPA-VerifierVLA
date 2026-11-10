@@ -31,6 +31,7 @@ import sys
 import libero
 import openpi_client
 import numpy as np
+from bddl import parsing
 from libero.libero import benchmark
 
 assert Path(libero.__file__).resolve() == Path(sys.argv[1]).resolve()
@@ -38,8 +39,10 @@ suite = benchmark.get_benchmark_dict()["libero_10"]()
 for task_id in range(suite.n_tasks):
     states = np.asarray(suite.get_task_init_states(task_id))
     assert states.shape[0] == 50 and np.isfinite(states).all()
-    assert Path(suite.get_task_bddl_file_path(task_id)).is_file()
-print("PASS: installed LIBERO imports and 500 initial states without source path injection")
+    bddl_path = suite.get_task_bddl_file_path(task_id)
+    assert Path(bddl_path).is_file()
+    assert parsing.scan_tokens(filename=bddl_path)
+print("PASS: installed LIBERO and BDDL imports, 10 task files, 500 initial states")
 """
             result = subprocess.run(
                 [sys.executable, "-I", "-c", code, str(benchmark_root.parent / "__init__.py")],
