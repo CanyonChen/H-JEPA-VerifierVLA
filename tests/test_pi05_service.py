@@ -7,10 +7,41 @@ import unittest
 import numpy as np
 from openpi_client import msgpack_numpy
 
-from scripts.serve_pi05_libero import RecordedPolicy, checkpoint_manifest
+from scripts.serve_pi05_libero import RecordedPolicy, checkpoint_manifest, warmup_policy
 
 
 class Pi05ServiceTest(unittest.TestCase):
+    def test_warmup_restores_sampling_key_and_starts_evaluation_at_request_one(self):
+        class Policy:
+            def __init__(self):
+                self._rng = 0
+
+            def infer(self, obs):
+                self._rng += 1
+                return {"actions": np.full((10, 7), self._rng, dtype=np.float32)}
+
+        base = Policy()
+        warm_response = warmup_policy(base, {})
+        self.assertEqual(base._rng, 0)
+        provenance = {"service_id": "test", "request_count": 0}
+        response = RecordedPolicy(base, provenance).infer({})
+        np.testing.assert_array_equal(response["actions"], warm_response["actions"])
+        self.assertEqual(response["evaluation"]["request_id"], 1)
+        self.assertEqual(base._rng, 1)
+
+    def test_warmup_restores_sampling_key_when_inference_fails(self):
+        class Policy:
+            _rng = 0
+
+            def infer(self, obs):
+                self._rng = 1
+                raise RuntimeError("warmup failed")
+
+        policy = Policy()
+        with self.assertRaisesRegex(RuntimeError, "warmup failed"):
+            warmup_policy(policy, {})
+        self.assertEqual(policy._rng, 0)
+
     def test_checkpoint_identity_is_path_independent_and_content_sensitive(self):
         with tempfile.TemporaryDirectory() as directory:
             left, right = Path(directory) / "left", Path(directory) / "right"

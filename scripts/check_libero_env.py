@@ -36,7 +36,9 @@ def configure_libero_paths():
         "assets": str(benchmark_root / "assets"),
     }
     # JSON is also valid YAML, so configuration needs no import from LIBERO.
-    (config_dir / "config.yaml").write_text(json.dumps(paths, indent=2) + "\n", encoding="utf-8")
+    temporary_config = config_dir / "config.{}.tmp".format(os.getpid())
+    temporary_config.write_text(json.dumps(paths, indent=2) + "\n", encoding="utf-8")
+    temporary_config.replace(config_dir / "config.yaml")
     os.environ["LIBERO_CONFIG_PATH"] = str(config_dir)
     return paths
 

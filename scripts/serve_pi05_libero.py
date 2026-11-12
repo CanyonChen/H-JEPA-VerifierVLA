@@ -61,10 +61,20 @@ class RecordedPolicy:
         return response
 
 
+def warmup_policy(policy, observation):
+    """Compile a representative request and restore the JAX sampling key."""
+    rng = policy._rng
+    try:
+        return policy.infer(observation)
+    finally:
+        policy._rng = rng
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--checkpoint", default=CHECKPOINT)
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--warmup", action="store_true", help="Compile inference before serving and preserve the initial RNG.")
     parser.add_argument("--output-root", type=Path, default=PROJECT_ROOT / "outputs/pi05_servers")
     args = parser.parse_args(argv)
     os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
@@ -78,7 +88,7 @@ def main(argv=None):
     )
     logging.info("Service records: %s", output_dir)
     provenance = {
-        "schema_version": 1, "service_id": service_id, "request_count": 0,
+        "schema_version": 1, "service_id": service_id, "request_count": 0, "pid": os.getpid(),
         "started_at_utc": datetime.now(timezone.utc).isoformat(), "hostname": socket.gethostname(),
         "policy_config": CONFIG, "backend": "jax", "initial_model_seed": 0,
         "rng_protocol": "Upstream default key(0), split once per inference; no reset between episodes.",
@@ -127,6 +137,13 @@ def main(argv=None):
         started = time.perf_counter()
         policy = policy_config.create_trained_policy(train_config, directory)
         provenance["load_seconds"] = time.perf_counter() - started
+        if args.warmup:
+            from openpi.policies.libero_policy import make_libero_example
+            logging.info("Warming up policy inference before accepting clients")
+            started = time.perf_counter()
+            warmup_policy(policy, make_libero_example())
+            provenance["warmup_seconds"] = time.perf_counter() - started
+            provenance["warmup_rng_restored"] = True
         provenance["startup_status"] = "LOADED"
         save_report()
         metadata = dict(policy.metadata)
