@@ -1,12 +1,11 @@
 """Verify cgroup limits take precedence over visible host resources."""
 
-import os
 from pathlib import Path
 import tempfile
 import unittest
 from unittest import mock
 
-from scripts.check_server_resources import GIB, apply_cpu_affinity, resource_status
+from scripts.check_server_resources import GIB, resource_status
 
 
 class ServerResourcesTest(unittest.TestCase):
@@ -25,12 +24,6 @@ class ServerResourcesTest(unittest.TestCase):
             self.assertEqual(status["memory_available_bytes"], 214748364800 - 162945130496)
             self.assertEqual(status["memory_limit_bytes"], 200 * GIB)
             self.assertEqual(status["memory_events"]["oom_kill"], 0)
-
-    def test_worker_affinity_uses_only_assigned_cpu_ids(self):
-        with mock.patch.dict(os.environ, {"LIBERO_CPU_IDS": "4,5"}), \
-                mock.patch("os.sched_setaffinity", create=True) as set_affinity:
-            apply_cpu_affinity()
-            set_affinity.assert_called_once_with(0, {4, 5})
 
 
 if __name__ == "__main__":

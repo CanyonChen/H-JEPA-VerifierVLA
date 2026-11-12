@@ -31,12 +31,6 @@ def resource_status(cgroup=Path("/sys/fs/cgroup"), meminfo=Path("/proc/meminfo")
             "cpu_throttled_usec": int(cpu_stat.get("throttled_usec", 0))}
 
 
-def apply_cpu_affinity():
-    cpu_ids = os.environ.get("LIBERO_CPU_IDS")
-    if cpu_ids:
-        os.sched_setaffinity(0, {int(cpu) for cpu in cpu_ids.split(",")})
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sample-seconds", type=float, default=2)

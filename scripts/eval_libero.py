@@ -23,7 +23,6 @@ import time
 import numpy as np
 
 from scripts.check_libero_env import PROJECT_ROOT, configure_libero_paths, make_policy_observation
-from scripts.check_server_resources import apply_cpu_affinity
 
 
 MAX_STEPS = {"libero_spatial": 220, "libero_object": 280, "libero_goal": 300, "libero_10": 520}
@@ -178,7 +177,6 @@ def main(argv=None):
     parser.add_argument("--request-offset", type=int, default=0, help="Completed requests preceding this resumed segment.")
     parser.add_argument("--output-root", type=Path, default=PROJECT_ROOT / "outputs/pi05_libero")
     args = parser.parse_args(argv)
-    apply_cpu_affinity()
     if args.request_offset < 0:
         parser.error("request-offset must be nonnegative")
     if args.task_id is not None and not 0 <= args.task_id < 10:

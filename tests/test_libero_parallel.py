@@ -1,4 +1,4 @@
-"""CPU checks for GPU budgeting, task scheduling and parallel result aggregation."""
+"""CPU checks for fixed task concurrency, recovery and parallel result aggregation."""
 
 import contextlib
 import io
@@ -42,7 +42,6 @@ class SimulatedProcesses:
             returncode = None
 
             def __init__(self):
-                self.terminated = False
                 self.model = model
                 self.task_id = task_id
                 self.port = port
@@ -68,10 +67,6 @@ class SimulatedProcesses:
                 return self.returncode
 
             def send_signal(self, value):
-                self.returncode = 0
-
-            def terminate(self):
-                self.terminated = True
                 self.returncode = 0
 
             def wait(self, timeout=None):
@@ -126,13 +121,10 @@ class LiberoParallelTest(unittest.TestCase):
             port = listener.getsockname()[1]
             self.assertGreater(parallel.available_port(port), port)
 
-    def test_capacity_uses_measured_worker_memory_and_current_usage(self):
-        self.assertEqual(parallel.worker_capacity(70 * 1024, 1024, 9 * 1024, 10), 7)
-        self.assertEqual(parallel.worker_capacity(70 * 1024, 1024, 9 * 1024, 3), 3)
-        with self.assertRaises(ValueError):
-            parallel.worker_capacity(1024, 512, 1024, 10)
-        with self.assertRaises(ValueError):
-            parallel.worker_capacity(1024, 0, 0, 10)
+    def test_worker_count_must_be_positive(self):
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as raised:
+            parallel.main(["--max-workers", "0"])
+        self.assertEqual(raised.exception.code, 2)
 
     def test_gpu_query_and_model_render_device_selection(self):
         with mock.patch.object(parallel.subprocess, "check_output", return_value="8753, 81559, 0\n") as query:
@@ -164,6 +156,16 @@ class LiberoParallelTest(unittest.TestCase):
             parallel.aggregate([episode(10, 0)], list(range(10)), 50)
         self.assertIsNone(parallel.aggregate(rows[:-1], list(range(10)), 50)["success_rate"])
 
+    def test_children_inherit_terminal_thread_settings(self):
+        names = ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS")
+        for settings in ({}, dict.fromkeys(names, "7")):
+            with mock.patch.dict(os.environ, settings, clear=True):
+                for model in (True, False):
+                    environment = parallel.child_environment(1, 1, model)
+                    for name in names:
+                        self.assertEqual(environment.get(name), settings.get(name))
+                    self.assertNotIn("LIBERO_CPU_IDS", environment)
+
     def test_live_reader_ignores_unfinished_row_and_remaps_artifacts(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -179,7 +181,7 @@ class LiberoParallelTest(unittest.TestCase):
         client.poll.return_value = server.poll.return_value = None
         client.send_signal.side_effect = ProcessLookupError
         server.wait.side_effect = [subprocess.TimeoutExpired("server", 20), 0]
-        task = parallel.TaskProcesses(0, 0, 8100, Path("unused"), server, mock.Mock(), client, mock.Mock())
+        task = parallel.TaskProcesses(0, 8100, Path("unused"), server, mock.Mock(), client, mock.Mock())
         parallel.stop_task(task)
         client.wait.assert_called_once_with(timeout=20)
         server.kill.assert_called_once_with()
@@ -205,16 +207,16 @@ class LiberoParallelTest(unittest.TestCase):
             run_dir, = Path(directory).iterdir()
             yield result, run_dir
 
-    def test_controller_calibrates_then_schedules_and_collects_all_final_rows(self):
+    def test_controller_runs_three_workers_and_collects_all_final_rows(self):
         processes = SimulatedProcesses()
         with self.run_controller(processes) as (result, directory):
             summary = json.loads((directory / "summary.json").read_text())
             config = json.loads((directory / "run_config.json").read_text())
             self.assertEqual(result, 0, summary)
             self.assertEqual(summary["valid_episodes"], 500)
-            self.assertEqual(summary["selected_workers"], 2)
-            self.assertEqual(summary["sampled_peak_vram_gib"], 21)
-            self.assertEqual(config["measured_worker_mib"], 10240)
+            self.assertEqual(summary["selected_workers"], 3)
+            self.assertEqual(summary["sampled_peak_vram_gib"], 31)
+            self.assertEqual(config["selected_workers"], 3)
             rows = [json.loads(line) for line in (directory / "episodes.jsonl").read_text().splitlines()]
             self.assertEqual(len(rows), 500)
             self.assertEqual(len({(row["task_id"], row["init_state_id"]) for row in rows}), 500)
@@ -224,13 +226,10 @@ class LiberoParallelTest(unittest.TestCase):
         for process in models:
             self.assertIn("--warmup", process.command)
             self.assertEqual(process.environment["CUDA_VISIBLE_DEVICES"], "1")
-            self.assertIn(process.environment["LIBERO_CPU_IDS"], ("0,1", "2,3"))
+            self.assertNotIn("LIBERO_CPU_IDS", process.environment)
             self.assertEqual(process.returncode, 0)
-        loading = 0
-        for tick, model, task in processes.starts:
-            loading += 1 if model else -1
-            self.assertIn(loading, (0, 1))
-        self.assertGreaterEqual(models[1].started, 3)
+        self.assertEqual([model.started for model in models[:3]], [0, 0, 0])
+        self.assertEqual(models[3].started, 8)
 
     def test_launch_failure_allows_existing_task_to_complete(self):
         processes = SimulatedProcesses()
@@ -249,57 +248,20 @@ class LiberoParallelTest(unittest.TestCase):
             self.assertEqual(summary["interrupted_episodes"], 0)
         self.assertTrue(all(process.returncode is not None for process in processes.processes))
 
-    def test_low_cgroup_memory_stops_loading_worker_and_preserves_active_task(self):
+    def test_cgroup_is_read_once_for_preflight(self):
         processes = SimulatedProcesses()
-        read_resources = processes.resources
-
-        def constrained_resources():
-            result = read_resources()
-            active = sum(process.model and process.returncode is None for process in processes.processes)
-            if active == 2:
-                result["memory_available_bytes"] = 15 * parallel.GIB
-            return result
-
-        processes.resources = constrained_resources
-        with self.run_controller(processes) as (result, directory):
-            summary = json.loads((directory / "summary.json").read_text())
-            self.assertEqual(result, 1)
-            self.assertEqual(summary["valid_episodes"], 50)
-            self.assertIn("Cgroup memory reserve", summary["run_error"])
-        self.assertTrue(all(process.returncode is not None for process in processes.processes))
-        self.assertEqual([process.task_id for process in processes.processes if process.terminated], [1])
-
-    def test_37_gib_headroom_starts_calibration_and_can_finish_with_one_worker(self):
-        processes = SimulatedProcesses()
-        read_resources = processes.resources
-
-        def realistic_headroom():
-            result = read_resources()
-            active = sum(process.model and process.returncode is None for process in processes.processes)
-            result["memory_current_bytes"] = (163 + active * 20) * parallel.GIB
-            result["memory_available_bytes"] = (37 - active * 20) * parallel.GIB
-            return result
-
-        processes.resources = realistic_headroom
+        resources = processes.resources()
+        resources["memory_current_bytes"] = 185 * parallel.GIB
+        resources["memory_available_bytes"] = 15 * parallel.GIB
+        processes.resources = mock.Mock(return_value=resources)
         with self.run_controller(processes) as (result, directory):
             summary = json.loads((directory / "summary.json").read_text())
             config = json.loads((directory / "run_config.json").read_text())
             self.assertEqual(result, 0, summary)
             self.assertEqual(summary["valid_episodes"], 500)
-            self.assertEqual(summary["sampled_peak_vram_gib"], 11)
-            self.assertEqual(config["reserved_host_worker_bytes"], 25 * parallel.GIB)
-        self.assertEqual(len([process for process in processes.processes if process.model]), 10)
-
-    def test_initial_headroom_at_reserve_starts_no_children(self):
-        processes = SimulatedProcesses()
-        resources = processes.resources()
-        resources["memory_available_bytes"] = 16 * parallel.GIB
-        processes.resources = lambda: resources
-        with self.assertRaises(SystemExit) as raised:
-            with self.run_controller(processes):
-                self.fail("Insufficient headroom should stop before child creation")
-        self.assertEqual(raised.exception.code, 2)
-        self.assertEqual(processes.processes, [])
+            self.assertEqual(summary["selected_workers"], 3)
+            self.assertEqual(config["initial_resources"]["memory_available_bytes"], 15 * parallel.GIB)
+        processes.resources.assert_called_once_with()
 
     def test_resume_keeps_290_results_and_runs_only_the_remaining_210(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -349,25 +311,25 @@ class LiberoParallelTest(unittest.TestCase):
             self.assertEqual(summary["status"], "INCOMPLETE")
             self.assertEqual(summary["infrastructure_errors"], 1)
             self.assertIsNone(summary["success_rate"])
-            self.assertEqual(summary["recorded_episodes"], 100)
-            self.assertEqual(summary["unattempted_episodes"], 400)
+            self.assertEqual(summary["recorded_episodes"], 150)
+            self.assertEqual(summary["unattempted_episodes"], 350)
         self.assertTrue(all(process.returncode is not None for process in processes.processes))
 
     def test_keyboard_interrupt_stops_owned_children_and_keeps_completed_rows(self):
         processes = SimulatedProcesses()
         advance = processes.sleep
 
-        def interrupt_after_calibration(seconds):
+        def interrupt_after_client_start(seconds):
             advance(seconds)
             if processes.tick == 4:
                 raise KeyboardInterrupt
 
-        processes.sleep = interrupt_after_calibration
+        processes.sleep = interrupt_after_client_start
         with self.run_controller(processes) as (result, directory):
             summary = json.loads((directory / "summary.json").read_text())
             self.assertEqual(result, 1)
             self.assertEqual(summary["run_error"], "Interrupted by user")
-            self.assertEqual(summary["valid_episodes"], 1)
+            self.assertEqual(summary["valid_episodes"], 3)
             self.assertIsNone(summary["success_rate"])
         self.assertTrue(all(process.returncode is not None for process in processes.processes))
 

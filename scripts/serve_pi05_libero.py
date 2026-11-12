@@ -18,9 +18,6 @@ import subprocess
 import time
 import uuid
 
-from scripts.check_server_resources import apply_cpu_affinity
-
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CHECKPOINT = "gs://openpi-assets/checkpoints/pi05_libero"
 CONFIG = "pi05_libero"
@@ -88,7 +85,6 @@ def main(argv=None):
     parser.add_argument("--expected-checkpoint-sha256")
     parser.add_argument("--output-root", type=Path, default=PROJECT_ROOT / "outputs/pi05_servers")
     args = parser.parse_args(argv)
-    apply_cpu_affinity()
     if args.request_offset < 0:
         parser.error("request-offset must be nonnegative")
     os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
