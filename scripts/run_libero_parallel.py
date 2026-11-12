@@ -135,16 +135,19 @@ def launch_client(task, args):
                  args.trials_per_task - task.first_init_state, task.first_init_state, task.cpu_ids)
 
 
-def stop_task(task):
+def stop_task(task, terminate=False):
     # Stop the simulator first so it can flush the current episode and video.
     for process in (task.client, task.server):
         if process is not None and process.poll() is None:
             try:
-                process.send_signal(signal.SIGINT)
+                if terminate:
+                    process.terminate()
+                else:
+                    process.send_signal(signal.SIGINT)
             except ProcessLookupError:
                 pass  # The child exited between poll and signal.
             try:
-                process.wait(timeout=20)
+                process.wait(timeout=3 if terminate else 20)
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait()
@@ -253,9 +256,9 @@ def main(argv=None):
         parser.error("CPU quota cannot fit a worker while leaving two cores for other processes")
     args.max_workers = min(args.max_workers, cpu_capacity)
     host_reserve_bytes = args.host_memory_reserve_gib * GIB
-    host_worker_bytes = 24 * GIB
-    if initial_resources["memory_available_bytes"] < host_reserve_bytes + host_worker_bytes:
-        parser.error("Cgroup has {:.2f} GiB available, below the initial 24 GiB worker allowance plus {:.1f} GiB reserve"
+    host_worker_bytes = 0
+    if initial_resources["memory_available_bytes"] <= host_reserve_bytes:
+        parser.error("Cgroup has {:.2f} GiB available, at or below the {:.1f} GiB reserve"
                      .format(initial_resources["memory_available_bytes"] / GIB, args.host_memory_reserve_gib))
     initial_gpu = gpu_status(args.gpu)
     target_mib = int(args.target_vram_gib * 1024)
@@ -285,6 +288,7 @@ def main(argv=None):
                  initial_resources["memory_available_bytes"] / GIB, args.host_memory_reserve_gib,
                  initial_resources["cpu_quota_cores"], args.max_workers, args.cpus_per_worker)
     logging.info("Retained %d valid episodes, including all recorded timeouts", len(retained))
+    logging.info("Starting with one monitored worker to measure host memory use")
     running = []
     pending = [task for task in args.task_ids if task_starts[task]["first_init_state"] < args.trials_per_task]
     worker_memory = None
@@ -343,7 +347,7 @@ def main(argv=None):
                     if resources["memory_available_bytes"] < host_reserve_bytes:
                         run_error = "Cgroup memory reserve reached while loading task {}".format(task.task_id)
                         logging.error(run_error)
-                        stop_task(task)
+                        stop_task(task, terminate=True)
                         running.remove(task)
                     elif task.server.poll() is not None:
                         run_error = "Task {} model exited; see {}".format(task.task_id, task.directory / "server.log")
@@ -369,7 +373,10 @@ def main(argv=None):
 
             loading = any(task.client is None for task in running)
             has_budget = worker_memory is None or status["used_mib"] + worker_memory <= target_mib
-            has_host_budget = resources["memory_available_bytes"] >= host_reserve_bytes + host_worker_bytes
+            required_host_bytes = host_reserve_bytes
+            if running:
+                required_host_bytes += host_worker_bytes
+            has_host_budget = resources["memory_available_bytes"] > required_host_bytes
             has_cpu_budget = cpu_used + args.cpus_per_worker <= resources["cpu_quota_cores"] - 2
             if (pending and run_error is None and len(running) < worker_limit and not loading
                     and has_budget and has_host_budget and has_cpu_budget):
@@ -390,7 +397,7 @@ def main(argv=None):
                 logging.info("%d/%d valid episodes, GPU %.2f GiB, utilization %d%%, %d active tasks",
                              progress["valid_episodes"], progress["planned_episodes"], status["used_mib"] / 1024,
                              status["utilization_percent"], len(running))
-                logging.info("Cgroup %.2f GiB available, next worker allowance %.2f GiB plus %.1f GiB reserve, CPU %.1f/%.1f cores",
+                logging.info("Cgroup %.2f GiB available, extra worker allowance %.2f GiB, %.1f GiB reserve, CPU %.1f/%.1f cores",
                              resources["memory_available_bytes"] / GIB, host_worker_bytes / GIB,
                              args.host_memory_reserve_gib, cpu_used, resources["cpu_quota_cores"])
                 next_report = elapsed + 30

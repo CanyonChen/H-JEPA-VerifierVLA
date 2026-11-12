@@ -42,6 +42,7 @@ class SimulatedProcesses:
             returncode = None
 
             def __init__(self):
+                self.terminated = False
                 self.model = model
                 self.task_id = task_id
                 self.port = port
@@ -67,6 +68,10 @@ class SimulatedProcesses:
                 return self.returncode
 
             def send_signal(self, value):
+                self.returncode = 0
+
+            def terminate(self):
+                self.terminated = True
                 self.returncode = 0
 
             def wait(self, timeout=None):
@@ -262,6 +267,39 @@ class LiberoParallelTest(unittest.TestCase):
             self.assertEqual(summary["valid_episodes"], 50)
             self.assertIn("Cgroup memory reserve", summary["run_error"])
         self.assertTrue(all(process.returncode is not None for process in processes.processes))
+        self.assertEqual([process.task_id for process in processes.processes if process.terminated], [1])
+
+    def test_37_gib_headroom_starts_calibration_and_can_finish_with_one_worker(self):
+        processes = SimulatedProcesses()
+        read_resources = processes.resources
+
+        def realistic_headroom():
+            result = read_resources()
+            active = sum(process.model and process.returncode is None for process in processes.processes)
+            result["memory_current_bytes"] = (163 + active * 20) * parallel.GIB
+            result["memory_available_bytes"] = (37 - active * 20) * parallel.GIB
+            return result
+
+        processes.resources = realistic_headroom
+        with self.run_controller(processes) as (result, directory):
+            summary = json.loads((directory / "summary.json").read_text())
+            config = json.loads((directory / "run_config.json").read_text())
+            self.assertEqual(result, 0, summary)
+            self.assertEqual(summary["valid_episodes"], 500)
+            self.assertEqual(summary["sampled_peak_vram_gib"], 11)
+            self.assertEqual(config["reserved_host_worker_bytes"], 25 * parallel.GIB)
+        self.assertEqual(len([process for process in processes.processes if process.model]), 10)
+
+    def test_initial_headroom_at_reserve_starts_no_children(self):
+        processes = SimulatedProcesses()
+        resources = processes.resources()
+        resources["memory_available_bytes"] = 16 * parallel.GIB
+        processes.resources = lambda: resources
+        with self.assertRaises(SystemExit) as raised:
+            with self.run_controller(processes):
+                self.fail("Insufficient headroom should stop before child creation")
+        self.assertEqual(raised.exception.code, 2)
+        self.assertEqual(processes.processes, [])
 
     def test_resume_keeps_290_results_and_runs_only_the_remaining_210(self):
         with tempfile.TemporaryDirectory() as directory:
