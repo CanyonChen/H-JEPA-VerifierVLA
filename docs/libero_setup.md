@@ -110,7 +110,7 @@ MUJOCO_EGL_DEVICE_ID=1 bash scripts/run_libero_check.sh --port 8001 --task-id 1
 - Python 3.8 / websockets 13.1 客户端与 Python 3.11 / websockets 15.0.1 服务端通过本机回环通信，完整传输两张图像、状态和文字，并收到预期的 `(10, 7)` 动作。该检查使用探针策略，没有加载模型权重。
 - Python 3.8 语法及检查入口帮助、三个 Bash 脚本语法、服务参数与上游 Tyro 数据类定义的一致性检查通过。LIBERO 和 `openpi-client` 的本地 editable 包构建通过。
 
-本地验证没有运行 NVIDIA GPU、EGL 或真实模型服务推理。服务器已通过初版 74 个包的依赖检查及修复后的 LIBERO 包导入；后续在 BDDL 导入处发现缺少 `future`，补齐后待服务器重跑。EGL 和真实观测通信尚未开始。根模型环境的 `pyproject.toml` 与 `uv.lock` 未修改。
+本地验证没有运行 NVIDIA GPU、EGL 或真实模型服务推理。服务器此前已通过初版 74 个包的依赖检查及修复后的 LIBERO 包导入，随后在 BDDL 导入处发现缺少 `future`，修复过程见下文。2026-11-12，用户确认改名后的 `~/canyon43079/H-JEPA-VerifierVLA` 中环境重建已完成，详细日志和 EGL 报告尚未回传。下一步从第 2 节启动模型服务，再运行第 3 节真实观测检查；该检查会同时记录 EGL 渲染、策略通信和动作执行结果。真实观测通信与完整 episode 尚无服务器结果。根模型环境的 `pyproject.toml` 与 `uv.lock` 未修改。
 
 ## LIBERO 安装导入失败与修复
 
