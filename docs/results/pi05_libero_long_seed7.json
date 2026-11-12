@@ -1,0 +1,152 @@
+{
+  "status": "PASS",
+  "scope": "single-GPU task-parallel evaluation with fresh model RNG key 0 for each task with recorded recovery segments and re-created simulators",
+  "planned_episodes": 500,
+  "recorded_episodes": 500,
+  "unattempted_episodes": 0,
+  "valid_episodes": 500,
+  "successes": 459,
+  "timeouts": 41,
+  "infrastructure_errors": 0,
+  "interrupted_episodes": 0,
+  "success_rate": 0.918,
+  "success_rate_wilson95": [
+    0.8906451408426114,
+    0.9389809105315311
+  ],
+  "policy_steps": 137998,
+  "policy_requests": 27773,
+  "run_error": null,
+  "per_task": [
+    {
+      "task_id": 0,
+      "valid_episodes": 50,
+      "successes": 48,
+      "timeouts": 2,
+      "infrastructure_errors": 0,
+      "success_rate": 0.96,
+      "success_rate_wilson95": [
+        0.8653990931249297,
+        0.9889611156723802
+      ]
+    },
+    {
+      "task_id": 1,
+      "valid_episodes": 50,
+      "successes": 50,
+      "timeouts": 0,
+      "infrastructure_errors": 0,
+      "success_rate": 1.0,
+      "success_rate_wilson95": [
+        0.9286524008666414,
+        1.0
+      ]
+    },
+    {
+      "task_id": 2,
+      "valid_episodes": 50,
+      "successes": 47,
+      "timeouts": 3,
+      "infrastructure_errors": 0,
+      "success_rate": 0.94,
+      "success_rate_wilson95": [
+        0.8378290831116182,
+        0.979385029651026
+      ]
+    },
+    {
+      "task_id": 3,
+      "valid_episodes": 50,
+      "successes": 50,
+      "timeouts": 0,
+      "infrastructure_errors": 0,
+      "success_rate": 1.0,
+      "success_rate_wilson95": [
+        0.9286524008666414,
+        1.0
+      ]
+    },
+    {
+      "task_id": 4,
+      "valid_episodes": 50,
+      "successes": 49,
+      "timeouts": 1,
+      "infrastructure_errors": 0,
+      "success_rate": 0.98,
+      "success_rate_wilson95": [
+        0.8950455641036219,
+        0.9964607407283539
+      ]
+    },
+    {
+      "task_id": 5,
+      "valid_episodes": 50,
+      "successes": 49,
+      "timeouts": 1,
+      "infrastructure_errors": 0,
+      "success_rate": 0.98,
+      "success_rate_wilson95": [
+        0.8950455641036219,
+        0.9964607407283539
+      ]
+    },
+    {
+      "task_id": 6,
+      "valid_episodes": 50,
+      "successes": 46,
+      "timeouts": 4,
+      "infrastructure_errors": 0,
+      "success_rate": 0.92,
+      "success_rate_wilson95": [
+        0.8116175308165717,
+        0.968450485911407
+      ]
+    },
+    {
+      "task_id": 7,
+      "valid_episodes": 50,
+      "successes": 49,
+      "timeouts": 1,
+      "infrastructure_errors": 0,
+      "success_rate": 0.98,
+      "success_rate_wilson95": [
+        0.8950455641036219,
+        0.9964607407283539
+      ]
+    },
+    {
+      "task_id": 8,
+      "valid_episodes": 50,
+      "successes": 26,
+      "timeouts": 24,
+      "infrastructure_errors": 0,
+      "success_rate": 0.52,
+      "success_rate_wilson95": [
+        0.38511744890044614,
+        0.6520286471342196
+      ]
+    },
+    {
+      "task_id": 9,
+      "valid_episodes": 50,
+      "successes": 45,
+      "timeouts": 5,
+      "infrastructure_errors": 0,
+      "success_rate": 0.9,
+      "success_rate_wilson95": [
+        0.7863976856252035,
+        0.9565242350681096
+      ]
+    }
+  ],
+  "output_dir": "/home/jovyan/canyon43079/H-JEPA-VerifierVLA/outputs/pi05_libero_parallel/pi05_libero_10_gpu1_seed7_20261112T131428_923173Z",
+  "suite": "libero_10",
+  "gpu": 1,
+  "egl_device": 1,
+  "sampled_peak_vram_gib": 28.0615234375,
+  "selected_workers": 3,
+  "wall_seconds": 2112.8037517927587,
+  "retained_episodes": 290,
+  "new_valid_episodes": 210,
+  "valid_episodes_per_hour": 357.81837255756386
+}

@@ -6,7 +6,7 @@
 
 ## 当前状态
 
-截至 2026-11-12，统一 uv 模型环境、CPU/GPU 兼容性、官方 π₀.₅-LIBERO 检查点推理和 H100 NVIDIA EGL 均已通过服务器检查。[LIBERO-Long smoke](docs/results/pi05_libero_smoke_seed7.json)完成十个任务各一个完整 episode，10/10 成功，无超时或基础设施异常，共执行 2486 个策略步、500 次推理请求。下一步为每任务 50 次、合计 500 个 episode 的正式 Long 评测；该正式评测与训练尚未执行，联合验证模型尚待实现。
+截至 2026-11-12，统一 uv 模型环境、CPU/GPU 兼容性、官方 π₀.₅-LIBERO 检查点推理和 H100 NVIDIA EGL 均已通过服务器检查。LIBERO-Long 正式评测已回传 500 个有效 episode，459 次成功、41 次超时，成功率 **91.8%**，基础设施异常为 0。结果由首段 290 回合与恢复段 210 回合合并。已完成运行使用 3 组并行，运行结束后默认配置改为 2 组。原始视频与逐回合记录待拉取复核，后续阶段包括其余三个 suite 与联合验证模型实现。[评测记录](docs/libero_baseline.md)、[回传汇总](docs/results/pi05_libero_long_seed7.json)
 
 - `openpi/` 导入自上游提交 `215abfb217dbac7d5f1273282331b9b1866c0479`，作为本仓库的普通源码目录管理。
 - `openpi/third_party/` 包含 ALOHA 与 LIBERO 的完整源码，导入版本分别为 `d1dc83afd89ded4379851257fe5d85632d31d5ec`、`f78abd68ee283de9f9be3c8f7e2a9ad60246e95c`。三者内部的 Git 元数据已移除。
@@ -89,7 +89,7 @@ CUDA_VISIBLE_DEVICES=1 bash scripts/run_pi05_checkpoint.sh
 
 ## 检查 LIBERO 渲染与真实观测
 
-官方检查点推理通过后，按 [LIBERO 安装与检查](docs/libero_setup.md)安装独立的 `.venv-libero`，检查 EGL 相机图像，启动现有 `.venv` 中的模型服务，再发送真实观测并执行最多 5 个策略动作。客户端使用 CPU 版 PyTorch 读取初始状态，模型推理与 EGL 渲染仍使用 GPU。上述检查及 [LIBERO smoke](docs/libero_smoke.md)均已在服务器通过；接下来按 [500 回合运行说明](docs/libero_baseline.md)准备正式 Long 结果。
+官方检查点推理通过后，安装独立的 `.venv-libero`，检查 EGL 相机图像，启动现有 `.venv` 中的模型服务，再发送真实观测并执行最多 5 个策略动作。客户端使用 CPU 版 PyTorch 读取初始状态，模型推理与 EGL 渲染使用 GPU。上述检查、10/10 成功的 smoke 和 500 回合正式 Long 评测均已回传完成结果。[LIBERO 安装与检查](docs/libero_setup.md)、[smoke 记录](docs/libero_smoke.md)、[500 回合评测记录](docs/libero_baseline.md)
 
 ## 实验路线
 

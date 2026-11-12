@@ -3,7 +3,7 @@
 更新日期：2026-11-12
 
 所属阶段：[总实验计划](plan.md)中的 P0 / baseline_setup。  
-当前状态：模型环境、CPU/GPU 检查、官方 π₀.₅-LIBERO 检查点与 H100 EGL 均已通过。2026-11-12，服务器在 `~/canyon43079/H-JEPA-VerifierVLA` 完成 B2：十个任务各一个完整 episode，10/10 成功，无超时和基础设施异常，共 2486 个策略步、500 次推理请求，见[回传汇总](results/pi05_libero_smoke_seed7.json)和[逐任务摘录](libero_smoke.md)。B3 每任务 50 次的调度、检查点指纹及逐任务统计已准备；500 个 episode 的正式 Long 评测与训练尚未执行。
+模型环境、CPU/GPU 检查、官方 π₀.₅-LIBERO 检查点与 H100 EGL 均已通过。2026-11-12，服务器在 `~/canyon43079/H-JEPA-VerifierVLA` 完成 B2 的 10/10 成功 smoke，并回传 B3 的 500 个有效 episode，459 次成功、41 次超时，成功率 91.8%，Wilson 95% 区间为 89.06%–93.90%。B3 合并首段 290 回合与恢复段 210 回合，基础设施异常为 0。该次运行使用 3 组并行，运行结束后默认配置改为 2 组。原始产物待拉取复核，B4/B5 按下表继续推进。[B2 汇总](results/pi05_libero_smoke_seed7.json)、[B3 汇总](results/pi05_libero_long_seed7.json)、[B3 记录](libero_baseline.md)
 
 资源：八卡 A100/H100 服务器、MuJoCo；Piper 真机用于后续阶段。
 
@@ -41,7 +41,7 @@
 | LIBERO 必需文件 | 已确认 `requirements.txt`、`bddl_files/`、`init_files/` 与 `assets/` 存在 |
 | Git 操作入口 | 在本项目根目录执行提交与更新；三个源码目录不再各自维护 Git 历史 |
 
-先前的 LIBERO 检出不完整与 ALOHA 子模块指针差异已在导入前解决。服务器统一模型环境、官方检查点的合成与真实观测推理、EGL 和十个完整 episode 均通过；后续复用权重缓存，继续 500 回合正式 Long 评测。
+先前的 LIBERO 检出不完整与 ALOHA 子模块指针差异已在导入前解决。服务器统一模型环境、官方检查点的合成与真实观测推理、EGL、十回合 smoke 和 500 回合正式 Long 评测均已回传完成记录。后续评测复用现有权重缓存。
 
 **执行计划表。**
 
@@ -50,13 +50,13 @@
 | B0 / pi05_setup | openpi、ALOHA 与 LIBERO 本地源码已就绪；在服务器准备相同版本工作副本，记录驱动、GPU、依赖、磁盘缓存位置，建立模型与仿真两个环境 | 环境及版本记录 | 服务器源码、任务 assets 和初始状态齐全；GPU、离屏渲染可用 | 模型 CPU/GPU 与 H100 NVIDIA EGL 均通过 |
 | B1 / pi05_inference | 加载官方检查点及 norm stats；先验证直接调用的合成观测推理，再通过官方 WebSocket 客户端检查真实 LIBERO 观测的输入输出 | 推理日志、输入输出样例、首次及后续调用耗时 | 返回有限数值的 `(10,7)` 动作块；真实观测预处理与官方一致 | 合成与真实观测推理均通过；真实动作执行 5 步 |
 | B2 / pi05_libero_smoke | 运行 `libero_10` 每任务 1 个 episode，共 10 个；检查视频、动作执行和终止逻辑 | 十个任务的闭环记录与视频 | 无未解释的加载、通信或渲染错误；成功与失败均有可追溯记录 | 服务器 10/10 成功；原始视频尚未拉取及逐帧复核 |
-| B3 / pi05_long_baseline | 补齐逐 episode 记录和视频唯一命名；按固定初始化运行 Long 每任务 50 次 | 500 个 episode 的记录、逐任务成功率、Long 总结果 | 预定 episode 全部有有效结果；基础设施异常已单列并处理 | [500 回合入口](libero_baseline.md)与服务记录已准备，CPU 检查通过；服务器待执行 |
+| B3 / pi05_long_baseline | 补齐逐 episode 记录和视频唯一命名；按固定初始化运行 Long 每任务 50 次 | 500 个 episode 的记录、逐任务成功率、Long 总结果 | 预定 episode 全部有有效结果；基础设施异常已单列并处理 | 服务器回传完成，459/500 成功、41 次超时，91.8%。原始产物待拉取复核。[记录](libero_baseline.md) |
 | B4 / pi05_full_baseline | 用相同模型和执行协议完成 Spatial、Object、Goal，各 500 次；汇总四套 | 共 2000 个 episode 的结果及官方参考比较 | 四套逐任务计数可核对；总指标可从逐 episode 数据重算 | 待执行 |
 | B5 / pi05_verifier_handoff | 固定 checkpoint、输入输出、执行长度及采样规则；整理后续候选与 verifier 接口缺口 | 基线交接记录 | 后续能够明确只改变候选生成/选择部分，保留同一基础策略及可比执行协议 | 待执行 |
 
 单 GPU 先建立参考结果。八卡优先用于后续独立评测实例，不需要在本阶段启动分布式训练。分片评测前明确每个实例的 GPU、端口、任务/episode 范围和输出目录，并保证计数不重复；官方 runner 当前没有 task/episode 分片参数。
 
-**环境与启动方式。** 模型侧采用本项目根目录的统一 uv 环境，供 openpi、H-JEPA 模型核心与 VeriVLA 模型共用，安装与验证见 [environment.md](environment.md)。LIBERO 客户端使用独立的 `.venv-libero`，通过模型服务通信。EGL、真实观测和 B2 已在服务器通过；接下来按 [B3 运行说明](libero_baseline.md)执行 500 个 episode。下方官方 Docker 命令保留为部署参考。
+**环境与启动方式。** 模型侧采用本项目根目录的统一 uv 环境，供 openpi、H-JEPA 模型核心与 VeriVLA 模型共用。LIBERO 客户端使用独立的 `.venv-libero`，通过模型服务通信。EGL、真实观测、B2 与 B3 已在服务器完成。下方官方 Docker 命令保留为部署参考。[环境说明](environment.md)、[B3 运行与结果记录](libero_baseline.md)
 
 | 环节 | 已核对的要求 |
 | --- | --- |
@@ -114,7 +114,7 @@ export CLIENT_ARGS="--args.host 127.0.0.1 --args.port 8000 --args.task-suite-nam
 MUJOCO_GL=egl docker compose -f examples/libero/compose.yml up --build --abort-on-container-exit
 ```
 
-该官方模板每个任务运行一次，总计 10 个 episodes。项目自己的入口现已支持 `--task-id` 与 `--init-state-id` 筛选；正式 B3 使用 [run_libero_baseline.sh](../scripts/run_libero_baseline.sh)，包含每任务 50 次调度和结果记录，而非直接把上述模板的次数改成 50。
+该官方模板每个任务运行一次，总计 10 个 episodes。项目自己的入口已支持 `--task-id` 与 `--init-state-id` 筛选。此次 B3 使用单 GPU 任务并行入口，包含每任务 50 次调度、结果记录和中断恢复。[run_libero_parallel.sh](../scripts/run_libero_parallel.sh)
 
 完成上述检查后，原生模型服务从项目根目录使用统一环境启动：
 
@@ -171,10 +171,12 @@ CUDA_VISIBLE_DEVICES=1 bash scripts/serve_pi05_libero.sh
 | `libero_spatial` | 98.8% | 待测 | 500 |
 | `libero_object` | 98.2% | 待测 | 500 |
 | `libero_goal` | 98.0% | 待测 | 500 |
-| `libero_10` / LIBERO-Long | 92.4% | 待测 | 500 |
+| `libero_10` / LIBERO-Long | 92.4% | 91.8%（459/500，三组并行，含恢复段） | 500 |
 | 四套平均 | 96.85% | 待测 | 合计 2000 |
 
 来源：[官方 LIBERO 结果表](https://github.com/Physical-Intelligence/openpi/blob/215abfb217dbac7d5f1273282331b9b1866c0479/examples/libero/README.md)。[VeriVLA 表 3](../VeriVLA/paper/VeriVLA.md)列出的 π₀.₅ 四套 baseline 数值相同，平均显示为 96.9%。数值相同不证明其所有运行细节一致，后续接入仍需核对执行长度、初始化和采样协议。
+
+本次 Long 比固定官方参考值低 0.6 个百分点。task 8 成功 26/50，24 次超时占全部 41 次超时的 58.5%。运行采用每任务独立模型服务，恢复时重新创建模拟器并按已有请求数推进 RNG。汇总副本来自用户回传，逐回合原始产物待拉取复核。[逐任务结果与恢复段性能](libero_baseline.md)
 
 只跑 Long 时与 92.4% 对照，不能与四套平均比较。正式报告包含各任务成功数/有效回合数、suite 成功率、四套平均和置信区间。官方值用于定位复现差距，不作为必须精确命中的验收阈值；差距明显时按版本、checkpoint、归一化、图像、动作、初始化、步数与采样顺序排查，不靠挑选种子刷到参考值。
 
@@ -191,7 +193,7 @@ CUDA_VISIBLE_DEVICES=1 bash scripts/serve_pi05_libero.sh
 
 正式评测中，通信、渲染等基础设施异常单列，修复后按相同 episode ID 定向补跑；任务失败和超时保留原结果。异常不能默默从分母中删除，也不能通过反复重跑任务失败来替换结果。`policy_timing.infer_ms` 的计时点早于结果转 CPU，不能单独当作完整推理延迟。
 
-下面保留正式结果归档的交付约定。B2/B3 运行目录均使用 `outputs/pi05_libero/<run_id>/`，当前具体产物结构见 [B3 运行说明](libero_baseline.md)；下列结构并非已经生成的正式结果：
+下面保留正式结果归档的交付约定。B2 与串行 B3 使用 `outputs/pi05_libero/<run_id>/`，此次并行 B3 使用 `outputs/pi05_libero_parallel/<run_id>/`。本地已保存用户回传的汇总 JSON，原始产物待按下列结构整理。[B3 运行说明](libero_baseline.md)
 
 ```text
 results/pi05_libero/<run_id>/
@@ -238,7 +240,7 @@ results/pi05_libero/<run_id>/
 - [x] 完成十个任务各一个完整 episode 的 smoke 闭环：10/10 成功。
 - [x] 在服务器完成逐 episode 记录与唯一视频路径；异常分类由 CPU 探针验证，策略执行协议不变。
 - [ ] 拉取原始视频与记录，完成视觉复核和完整产物归档。
-- [ ] 完成 Long 的 500 个有效 episode，保存逐任务结果和失败样例。
+- [x] 完成 Long 的 500 个有效 episode，归档用户回传的逐任务汇总，459/500 成功、41 次超时。
 - [ ] 完成其余三个 suite，得到可重算的 2000-episode baseline 报告。
 - [ ] 保存单候选、10 步预测 / 5 步执行的固定协议及服务端采样记录。
 - [ ] 整理 VeriVLA 候选采样、评分时域、状态字段和 seed/noise 适配清单，交接到下一阶段。

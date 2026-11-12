@@ -131,7 +131,7 @@ MUJOCO_EGL_DEVICE_ID=1 bash scripts/run_libero_check.sh --port 8001 --task-id 1
 
 ## 4. 十个任务各一个完整 episode
 
-B0/B1 与 [B2 smoke](libero_smoke.md)均已在服务器通过：LIBERO-Long 十个任务各一个完整 episode，初始状态 0、环境 seed 7，10/10 成功。复跑 B2 仍使用 `bash scripts/run_libero_smoke.sh`；当前下一步是 [B3：每任务 50 个初始状态](libero_baseline.md)，正式 500 回合结果待服务器执行。
+B0/B1 与 B2 smoke 均已在服务器通过。LIBERO-Long 十个任务各一个完整 episode，初始状态 0、环境 seed 7，10/10 成功。复跑 B2 使用 `bash scripts/run_libero_smoke.sh`。B3 每任务 50 个初始状态的正式评测已回传 500 个有效回合，459 次成功、41 次超时，成功率 91.8%。[B2 smoke](libero_smoke.md)、[B3 结果](libero_baseline.md)
 
 ## LIBERO 安装导入失败与修复
 
