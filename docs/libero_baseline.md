@@ -4,20 +4,20 @@
 
 ## 1 号 H100 并行运行
 
-按服务器管理员要求，本轮使用 **1 号 H100、固定 3 组并行**。每组包含一个模型服务和一个仿真客户端，负责一项任务的初始状态。CPU 与线程使用交给操作系统和库自然调度。10 项任务合计 500 回合。
+本轮使用 **1 号 H100、固定 2 组并行**。每组包含一个模型服务和一个仿真客户端，负责一项任务的初始状态。CPU 与线程使用交给操作系统和库自然调度。10 项任务合计 500 回合。
 
 先在终端 1 按 `Ctrl+C` 停止当前手动启动的模型服务，再在一个终端执行下面的命令。这个入口负责启动和回收全部模型、仿真子进程。
 
 ```bash
 cd ~/canyon43079/H-JEPA-VerifierVLA &&
 git pull --ff-only origin main &&
-bash scripts/run_libero_parallel.sh --gpu 1 --egl-device 1 --max-workers 3
+bash scripts/run_libero_parallel.sh --gpu 1 --egl-device 1 --max-workers 2
 ```
 
 调度过程如下。
 
 1. 启动前读取一次 GPU、cgroup 内存和 CPU 配额，打印快照并保存到运行配置。
-2. 同时启动 3 个模型服务，每个服务就绪后启动对应的仿真客户端。并发数量由 `--max-workers` 指定。
+2. 同时启动 2 个模型服务，每个服务就绪后启动对应的仿真客户端。并发数量由 `--max-workers` 指定。
 3. 一项任务完成后回收自己的服务，在同一次调度中补上下一个任务，直到完成全部任务。新任务优先使用独立端口，实际被占用的端口自动避让。进程启动失败时保存错误并让其他活动任务完成。
 
 每个模型子进程设置 `CUDA_VISIBLE_DEVICES=1`，每个仿真子进程设置 `MUJOCO_EGL_DEVICE_ID=1`。JAX 使用 `XLA_PYTHON_CLIENT_PREALLOCATE=false` 按需分配，各模型服务从 8100 端口起占用独立端口。显存采样用于记录实际占用和运行性能。按需分配选项的行为见 [JAX 官方说明](https://docs.jax.dev/en/latest/gpu_memory_allocation.html)。
@@ -38,13 +38,13 @@ bash scripts/run_libero_parallel.sh --gpu 1 --egl-device 1 --max-workers 3
 
 2026-11-12 用户回传的客户端启动前快照显示 GPU 1 占用 **8753 MiB，约 8.55 GiB**，利用率为 0%。B2 日志中后九个回合合计约 162.2 秒，平均约 18 秒，500 回合串行粗估约 2.5–3 小时。
 
-首次并行运行测得单组显存 9557 MiB，选择了 7 组。后续采样峰值达到 81006 MiB，即 79.11 GiB，说明初次校准低估了后续需求。这一运行耗时 1555.03 秒，记录 290 个有效回合，含启动和中断收尾的吞吐为约 671 回合/小时。固定 3 组并行的性能等待本轮服务器测量。
+首次并行运行测得单组显存 9557 MiB，选择了 7 组。后续采样峰值达到 81006 MiB，即 79.11 GiB，说明初次校准低估了后续需求。这一运行耗时 1555.03 秒，记录 290 个有效回合，含启动和中断收尾的吞吐为约 671 回合/小时。固定 2 组并行的性能等待本轮服务器测量。
 
 ### cgroup 检查与恢复
 
 用户回传的 cgroup v2 快照显示内存上限 200 GiB，当前约 151.75 GiB，硬限额下余量约 48.25 GiB，历史峰值接近 200 GiB。`memory.events` 中 `max=5`、`oom=0`、`oom_kill=0`。`cpu.max=2000000 100000` 对应 20 核配额，CPU affinity 可见 176 个逻辑 CPU。资源检查采用这个容器的 `/sys/fs/cgroup`，同时用宿主机 `MemAvailable` 约束余量。字段含义见 [Linux cgroup v2 文档](https://docs.kernel.org/admin-guide/cgroup-v2.html)。
 
-随后服务器的 13 项并行回归检查全部通过，包括 POSIX 端口回收。20:44 的恢复运行在加载 task 1 时触发旧版 16 GiB 预留判断，新增有效回合为 0。按用户确认的执行方式，当前采用固定 3 组并行和启动前的只读资源快照，CPU 由系统自然调度。
+随后服务器的 13 项并行回归检查全部通过，包括 POSIX 端口回收。20:44 的恢复运行在加载 task 1 时触发旧版 16 GiB 预留判断，新增有效回合为 0。按用户确认的执行方式，当前采用固定 2 组并行和启动前的只读资源快照，CPU 由系统自然调度。
 
 执行下面的命令继续剩余回合，启动器会先打印资源快照。
 
@@ -52,7 +52,7 @@ bash scripts/run_libero_parallel.sh --gpu 1 --egl-device 1 --max-workers 3
 cd ~/canyon43079/H-JEPA-VerifierVLA &&
 git pull --ff-only origin main &&
 bash scripts/run_libero_parallel.sh \
-  --gpu 1 --egl-device 1 --max-workers 3 \
+  --gpu 1 --egl-device 1 --max-workers 2 \
   --resume-from outputs/pi05_libero_parallel/pi05_libero_10_gpu1_seed7_20261112T113436_567617Z
 ```
 

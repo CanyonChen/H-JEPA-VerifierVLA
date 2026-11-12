@@ -207,16 +207,16 @@ class LiberoParallelTest(unittest.TestCase):
             run_dir, = Path(directory).iterdir()
             yield result, run_dir
 
-    def test_controller_runs_three_workers_and_collects_all_final_rows(self):
+    def test_controller_runs_two_workers_and_collects_all_final_rows(self):
         processes = SimulatedProcesses()
         with self.run_controller(processes) as (result, directory):
             summary = json.loads((directory / "summary.json").read_text())
             config = json.loads((directory / "run_config.json").read_text())
             self.assertEqual(result, 0, summary)
             self.assertEqual(summary["valid_episodes"], 500)
-            self.assertEqual(summary["selected_workers"], 3)
-            self.assertEqual(summary["sampled_peak_vram_gib"], 31)
-            self.assertEqual(config["selected_workers"], 3)
+            self.assertEqual(summary["selected_workers"], 2)
+            self.assertEqual(summary["sampled_peak_vram_gib"], 21)
+            self.assertEqual(config["selected_workers"], 2)
             rows = [json.loads(line) for line in (directory / "episodes.jsonl").read_text().splitlines()]
             self.assertEqual(len(rows), 500)
             self.assertEqual(len({(row["task_id"], row["init_state_id"]) for row in rows}), 500)
@@ -228,8 +228,8 @@ class LiberoParallelTest(unittest.TestCase):
             self.assertEqual(process.environment["CUDA_VISIBLE_DEVICES"], "1")
             self.assertNotIn("LIBERO_CPU_IDS", process.environment)
             self.assertEqual(process.returncode, 0)
-        self.assertEqual([model.started for model in models[:3]], [0, 0, 0])
-        self.assertEqual(models[3].started, 8)
+        self.assertEqual([model.started for model in models[:2]], [0, 0])
+        self.assertEqual(models[2].started, 8)
 
     def test_launch_failure_allows_existing_task_to_complete(self):
         processes = SimulatedProcesses()
@@ -241,7 +241,7 @@ class LiberoParallelTest(unittest.TestCase):
             return launch(command, **kwargs)
 
         processes.popen = fail_task_two
-        with self.run_controller(processes) as (result, directory):
+        with self.run_controller(processes, ["--max-workers", "3"]) as (result, directory):
             summary = json.loads((directory / "summary.json").read_text())
             self.assertEqual(result, 1)
             self.assertEqual(summary["valid_episodes"], 100)
@@ -259,7 +259,7 @@ class LiberoParallelTest(unittest.TestCase):
             config = json.loads((directory / "run_config.json").read_text())
             self.assertEqual(result, 0, summary)
             self.assertEqual(summary["valid_episodes"], 500)
-            self.assertEqual(summary["selected_workers"], 3)
+            self.assertEqual(summary["selected_workers"], 2)
             self.assertEqual(config["initial_resources"]["memory_available_bytes"], 15 * parallel.GIB)
         processes.resources.assert_called_once_with()
 
@@ -311,8 +311,8 @@ class LiberoParallelTest(unittest.TestCase):
             self.assertEqual(summary["status"], "INCOMPLETE")
             self.assertEqual(summary["infrastructure_errors"], 1)
             self.assertIsNone(summary["success_rate"])
-            self.assertEqual(summary["recorded_episodes"], 150)
-            self.assertEqual(summary["unattempted_episodes"], 350)
+            self.assertEqual(summary["recorded_episodes"], 100)
+            self.assertEqual(summary["unattempted_episodes"], 400)
         self.assertTrue(all(process.returncode is not None for process in processes.processes))
 
     def test_keyboard_interrupt_stops_owned_children_and_keeps_completed_rows(self):
@@ -329,7 +329,7 @@ class LiberoParallelTest(unittest.TestCase):
             summary = json.loads((directory / "summary.json").read_text())
             self.assertEqual(result, 1)
             self.assertEqual(summary["run_error"], "Interrupted by user")
-            self.assertEqual(summary["valid_episodes"], 3)
+            self.assertEqual(summary["valid_episodes"], 2)
             self.assertIsNone(summary["success_rate"])
         self.assertTrue(all(process.returncode is not None for process in processes.processes))
 

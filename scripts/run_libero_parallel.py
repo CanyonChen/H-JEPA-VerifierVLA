@@ -203,7 +203,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--gpu", type=int, default=1)
     parser.add_argument("--egl-device", type=int, default=1)
-    parser.add_argument("--max-workers", type=int, default=3)
+    parser.add_argument("--max-workers", type=int, default=2)
     parser.add_argument("--resume-from", type=Path)
     parser.add_argument("--base-port", type=int, default=8100)
     parser.add_argument("--suite", choices=tuple(MAX_STEPS), default="libero_10")
