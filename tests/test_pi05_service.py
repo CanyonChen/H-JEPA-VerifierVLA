@@ -3,14 +3,28 @@
 from pathlib import Path
 import tempfile
 import unittest
+from types import SimpleNamespace
 
 import numpy as np
 from openpi_client import msgpack_numpy
 
-from scripts.serve_pi05_libero import RecordedPolicy, checkpoint_manifest, warmup_policy
+from scripts.serve_pi05_libero import RecordedPolicy, advance_policy_rng, checkpoint_manifest, warmup_policy
 
 
 class Pi05ServiceTest(unittest.TestCase):
+    def test_restored_jax_rng_matches_successive_upstream_splits(self):
+        try:
+            import jax
+        except ImportError:
+            self.skipTest("JAX is tested in the Python 3.11 model environment")
+        with jax.default_device(jax.devices("cpu")[0]):
+            expected = jax.random.key(0)
+            for _ in range(17):
+                expected, _ = jax.random.split(expected)
+            policy = SimpleNamespace(_rng=jax.random.key(0))
+            advance_policy_rng(policy, 17)
+            np.testing.assert_array_equal(jax.random.key_data(policy._rng), jax.random.key_data(expected))
+
     def test_warmup_restores_sampling_key_and_starts_evaluation_at_request_one(self):
         class Policy:
             def __init__(self):

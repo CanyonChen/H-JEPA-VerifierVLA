@@ -23,6 +23,7 @@ import time
 import numpy as np
 
 from scripts.check_libero_env import PROJECT_ROOT, configure_libero_paths, make_policy_observation
+from scripts.check_server_resources import apply_cpu_affinity
 
 
 MAX_STEPS = {"libero_spatial": 220, "libero_object": 280, "libero_goal": 300, "libero_10": 520}
@@ -47,15 +48,15 @@ def build_episode_plan(task_ids, first_init_state, trials_per_task):
             for init_id in range(first_init_state, first_init_state + trials_per_task)]
 
 
-def validate_server_provenance(metadata):
+def validate_server_provenance(metadata, request_offset=0):
     provenance = metadata.get("evaluation", {})
     if (provenance.get("schema_version") != 1 or not provenance.get("service_id")
             or provenance.get("policy_config") != "pi05_libero" or provenance.get("backend") != "jax"
             or provenance.get("action_horizon") != 10 or provenance.get("initial_model_seed") != 0
             or len(provenance.get("checkpoint_manifest", {}).get("sha256", "")) != 64):
         raise ValueError("Baseline requires checkpoint provenance; restart with bash scripts/serve_pi05_libero.sh")
-    if provenance.get("request_count") != 0:
-        raise ValueError("Baseline requires a freshly restarted server with no previous inference requests")
+    if provenance.get("request_count") != request_offset:
+        raise ValueError("Server request count does not match the requested evaluation offset")
     return provenance
 
 
@@ -174,8 +175,12 @@ def main(argv=None):
     parser.add_argument("--init-state-id", type=int, default=0, help="First initial state in the requested range.")
     parser.add_argument("--num-trials-per-task", type=int, default=1, help="Use 50 for the complete suite baseline.")
     parser.add_argument("--seed", type=int, default=7, help="Environment seed; does not set the model RNG.")
+    parser.add_argument("--request-offset", type=int, default=0, help="Completed requests preceding this resumed segment.")
     parser.add_argument("--output-root", type=Path, default=PROJECT_ROOT / "outputs/pi05_libero")
     args = parser.parse_args(argv)
+    apply_cpu_affinity()
+    if args.request_offset < 0:
+        parser.error("request-offset must be nonnegative")
     if args.task_id is not None and not 0 <= args.task_id < 10:
         parser.error("task-id must be 0..9")
     task_ids = list(range(10)) if args.task_id is None else [args.task_id]
@@ -214,7 +219,9 @@ def main(argv=None):
         "expected_policy_config": "pi05_libero",
         "expected_checkpoint": "gs://openpi-assets/checkpoints/pi05_libero",
         "policy_identity_scope": "expected launcher settings; not attested by the WebSocket server",
-        "model_rng_protocol": "Restart default JAX server (key 0); single client, no warmup requests.",
+        "model_rng_protocol": "JAX key 0 advanced by restored_request_count, with one client per service.",
+        "restored_request_count": args.request_offset,
+        "resume_environment_protocol": "New simulator seeded at the start of this segment.",
         "request_id_scope": "Client attempts; matches server order for an error-free run following the above protocol.",
     }
     config_path = run_dir / "run_config.json"
@@ -224,7 +231,7 @@ def main(argv=None):
     run_error = None
     interrupted = False
     client = None
-    request_offset = 0
+    request_offset = args.request_offset
     environments = contextlib.ExitStack()
     active_task_id = None
     try:
@@ -249,8 +256,8 @@ def main(argv=None):
         write_json(config_path, config)
         provenance = config["server_metadata"].get("evaluation", {})
         expected_service_id = None
-        if args.num_trials_per_task > 1:
-            provenance = validate_server_provenance(config["server_metadata"])
+        if args.num_trials_per_task > 1 or args.request_offset:
+            provenance = validate_server_provenance(config["server_metadata"], args.request_offset)
             expected_service_id = provenance["service_id"]
         if provenance:
             config["policy_identity_scope"] = "Loaded checkpoint identity and startup settings reported by the server"

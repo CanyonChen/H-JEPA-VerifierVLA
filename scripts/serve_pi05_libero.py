@@ -18,6 +18,8 @@ import subprocess
 import time
 import uuid
 
+from scripts.check_server_resources import apply_cpu_affinity
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CHECKPOINT = "gs://openpi-assets/checkpoints/pi05_libero"
@@ -70,13 +72,25 @@ def warmup_policy(policy, observation):
         policy._rng = rng
 
 
+def advance_policy_rng(policy, request_count):
+    """Restore the next JAX key after a prefix of completed inference requests."""
+    import jax
+
+    policy._rng = jax.lax.fori_loop(0, request_count, lambda _, key: jax.random.split(key)[0], policy._rng)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--checkpoint", default=CHECKPOINT)
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--warmup", action="store_true", help="Compile inference before serving and preserve the initial RNG.")
+    parser.add_argument("--request-offset", type=int, default=0)
+    parser.add_argument("--expected-checkpoint-sha256")
     parser.add_argument("--output-root", type=Path, default=PROJECT_ROOT / "outputs/pi05_servers")
     args = parser.parse_args(argv)
+    apply_cpu_affinity()
+    if args.request_offset < 0:
+        parser.error("request-offset must be nonnegative")
     os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
     os.environ["JAX_PLATFORMS"] = "cuda"
     service_id = str(uuid.uuid4())
@@ -88,7 +102,8 @@ def main(argv=None):
     )
     logging.info("Service records: %s", output_dir)
     provenance = {
-        "schema_version": 1, "service_id": service_id, "request_count": 0, "pid": os.getpid(),
+        "schema_version": 1, "service_id": service_id, "request_count": args.request_offset, "pid": os.getpid(),
+        "restored_request_count": args.request_offset,
         "started_at_utc": datetime.now(timezone.utc).isoformat(), "hostname": socket.gethostname(),
         "policy_config": CONFIG, "backend": "jax", "initial_model_seed": 0,
         "rng_protocol": "Upstream default key(0), split once per inference; no reset between episodes.",
@@ -129,6 +144,9 @@ def main(argv=None):
         logging.info("Hashing checkpoint files for reproducibility (reads cached weights; no redownload)")
         started = time.perf_counter()
         provenance["checkpoint_manifest"] = checkpoint_manifest(directory)
+        if (args.expected_checkpoint_sha256 is not None
+                and provenance["checkpoint_manifest"]["sha256"] != args.expected_checkpoint_sha256):
+            raise ValueError("Checkpoint content differs from the evaluation being resumed")
         provenance["hash_seconds"] = time.perf_counter() - started
         provenance["norm_stats_sha256"] = hashlib.sha256(norm_stats.read_bytes()).hexdigest()
         save_report()
@@ -137,6 +155,9 @@ def main(argv=None):
         started = time.perf_counter()
         policy = policy_config.create_trained_policy(train_config, directory)
         provenance["load_seconds"] = time.perf_counter() - started
+        if args.request_offset:
+            advance_policy_rng(policy, args.request_offset)
+            logging.info("Restored model RNG after %d completed requests", args.request_offset)
         if args.warmup:
             from openpi.policies.libero_policy import make_libero_example
             logging.info("Warming up policy inference before accepting clients")

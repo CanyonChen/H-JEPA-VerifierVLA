@@ -287,6 +287,19 @@ class LiberoEpisodeTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 validate_server_provenance(metadata)
 
+    def test_resumed_single_episode_uses_restored_request_offset(self):
+        provenance = dict(self.provenance(), request_count=17)
+        policy = RecordedPolicy(FakePolicy(), provenance)
+        policy.get_server_metadata = lambda: {"evaluation": provenance}
+        args = ["--task-id", "1", "--init-state-id", "49", "--request-offset", "17"]
+        with self.fake_main(lambda **kwargs: FakeEnvironment(success_at=1), policy, args) as (exit_code, run_dir):
+            row = json.loads((run_dir / "episodes.jsonl").read_text())
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(row["first_server_request_id"], 18)
+            self.assertEqual(row["last_client_request_id"], 18)
+        with self.assertRaises(ValueError):
+            validate_server_provenance({"evaluation": provenance}, request_offset=17)
+
     def test_unexpected_server_request_does_not_execute_actions(self):
         provenance = self.provenance()
         policy = RecordedPolicy(FakePolicy(), provenance)

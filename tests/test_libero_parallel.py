@@ -6,17 +6,20 @@ import json
 import logging
 import os
 from pathlib import Path
+import socket
 import subprocess
 import tempfile
 import unittest
 from unittest import mock
+from types import SimpleNamespace
 
 from scripts import run_libero_parallel as parallel
 
 
 def episode(task, init, outcome="success"):
     return {"task_id": task, "init_state_id": init, "outcome": outcome,
-            "policy_steps": 10, "policy_requests": 2, "artifacts": "episodes/init{:02d}".format(init)}
+            "policy_steps": 10, "policy_requests": 2, "artifacts": "episodes/init{:02d}".format(init),
+            "first_server_request_id": init * 2 + 1, "last_server_request_id": init * 2 + 2}
 
 
 class SimulatedProcesses:
@@ -46,15 +49,18 @@ class SimulatedProcesses:
                 self.environment = kwargs["env"]
                 self.command = command
                 if not model:
+                    self.first_init = int(command[command.index("--init-state-id") + 1])
                     self.path = output_root / "run" / "episodes.jsonl"
                     self.path.parent.mkdir(parents=True)
-                    self.path.write_text(json.dumps(episode(task_id, 0)) + "\n", encoding="utf-8")
+                    self.path.write_text(json.dumps(episode(task_id, self.first_init)) + "\n", encoding="utf-8")
+                    (self.path.parent / "run_config.json").write_text(json.dumps({"server_metadata": {
+                        "evaluation": {"checkpoint_manifest": {"sha256": "0" * 64}}}}), encoding="utf-8")
 
             def poll(self):
                 if self.returncode is None and not model and owner.tick - self.started >= 6:
                     # The final rows arrive after the controller's live progress read.
                     with self.path.open("a", encoding="utf-8") as stream:
-                        for init in range(1, 50):
+                        for init in range(self.first_init + 1, 50):
                             outcome = "infrastructure_error" if task_id == owner.fail_task and init == 49 else "success"
                             stream.write(json.dumps(episode(task_id, init, outcome)) + "\n")
                     self.returncode = 1 if task_id == owner.fail_task else 0
@@ -83,8 +89,38 @@ class SimulatedProcesses:
         if self.tick > 100:
             raise RuntimeError("Controller did not finish")
 
+    def resources(self):
+        active = sum(process.model and process.returncode is None for process in self.processes)
+        return {"memory_current_bytes": (32 + active * 4) * parallel.GIB,
+                "memory_limit_bytes": 200 * parallel.GIB, "memory_available_bytes": (168 - active * 4) * parallel.GIB,
+                "cpu_quota_cores": 20, "cpu_ids": list(range(176)), "cpu_usage_usec": 0,
+                "cpu_throttled_usec": 0, "memory_events": {"max": 5, "oom": 0, "oom_kill": 0}}
+
 
 class LiberoParallelTest(unittest.TestCase):
+    @unittest.skipUnless(os.name == "posix", "TCP TIME_WAIT reuse is verified on POSIX")
+    def test_port_probe_reuses_closed_server_in_time_wait(self):
+        with socket.socket() as listener:
+            listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            listener.bind(("127.0.0.1", 0))
+            listener.listen(1)
+            port = listener.getsockname()[1]
+            with socket.create_connection(("127.0.0.1", port)) as client:
+                connection, address = listener.accept()
+                with connection:
+                    connection.shutdown(socket.SHUT_WR)
+                    self.assertEqual(client.recv(1), b"")
+                    client.shutdown(socket.SHUT_WR)
+                    self.assertEqual(connection.recv(1), b"")
+        self.assertEqual(parallel.available_port(port), port)
+
+    def test_real_occupied_port_is_skipped(self):
+        with socket.socket() as listener:
+            listener.bind(("0.0.0.0", 0))
+            listener.listen(1)
+            port = listener.getsockname()[1]
+            self.assertGreater(parallel.available_port(port), port)
+
     def test_capacity_uses_measured_worker_memory_and_current_usage(self):
         self.assertEqual(parallel.worker_capacity(70 * 1024, 1024, 9 * 1024, 10), 7)
         self.assertEqual(parallel.worker_capacity(70 * 1024, 1024, 9 * 1024, 3), 3)
@@ -146,16 +182,17 @@ class LiberoParallelTest(unittest.TestCase):
         task.server_log.close.assert_called_once_with()
 
     @contextlib.contextmanager
-    def run_controller(self, processes):
+    def run_controller(self, processes, extra_args=()):
         with tempfile.TemporaryDirectory() as directory:
             with mock.patch.object(parallel.subprocess, "Popen", side_effect=processes.popen), \
                     mock.patch.object(parallel.socket, "socket"), \
                     mock.patch.object(parallel, "server_ready", side_effect=processes.ready), \
                     mock.patch.object(parallel, "gpu_status", side_effect=processes.gpu_status), \
+                    mock.patch.object(parallel, "resource_status", side_effect=processes.resources), \
                     mock.patch.object(parallel.time, "sleep", side_effect=processes.sleep), \
                     contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
                 try:
-                    result = parallel.main(["--target-vram-gib", "25", "--output-root", directory])
+                    result = parallel.main(["--output-root", directory, *extra_args])
                 finally:
                     for handler in list(logging.getLogger().handlers):
                         logging.getLogger().removeHandler(handler)
@@ -178,16 +215,93 @@ class LiberoParallelTest(unittest.TestCase):
             self.assertEqual(len({(row["task_id"], row["init_state_id"]) for row in rows}), 500)
         models = [process for process in processes.processes if process.model]
         self.assertEqual(len(models), 10)
-        self.assertEqual({process.port for process in models}, {8100, 8101})
+        self.assertEqual({process.port for process in models}, set(range(8100, 8110)))
         for process in models:
             self.assertIn("--warmup", process.command)
             self.assertEqual(process.environment["CUDA_VISIBLE_DEVICES"], "1")
+            self.assertIn(process.environment["LIBERO_CPU_IDS"], ("0,1", "2,3"))
             self.assertEqual(process.returncode, 0)
         loading = 0
         for tick, model, task in processes.starts:
             loading += 1 if model else -1
             self.assertIn(loading, (0, 1))
         self.assertGreaterEqual(models[1].started, 3)
+
+    def test_launch_failure_allows_existing_task_to_complete(self):
+        processes = SimulatedProcesses()
+        launch = processes.popen
+
+        def fail_task_two(command, **kwargs):
+            if "task02" in command[-1]:
+                raise OSError("launch failed")
+            return launch(command, **kwargs)
+
+        processes.popen = fail_task_two
+        with self.run_controller(processes) as (result, directory):
+            summary = json.loads((directory / "summary.json").read_text())
+            self.assertEqual(result, 1)
+            self.assertEqual(summary["valid_episodes"], 100)
+            self.assertEqual(summary["interrupted_episodes"], 0)
+        self.assertTrue(all(process.returncode is not None for process in processes.processes))
+
+    def test_low_cgroup_memory_stops_loading_worker_and_preserves_active_task(self):
+        processes = SimulatedProcesses()
+        read_resources = processes.resources
+
+        def constrained_resources():
+            result = read_resources()
+            active = sum(process.model and process.returncode is None for process in processes.processes)
+            if active == 2:
+                result["memory_available_bytes"] = 15 * parallel.GIB
+            return result
+
+        processes.resources = constrained_resources
+        with self.run_controller(processes) as (result, directory):
+            summary = json.loads((directory / "summary.json").read_text())
+            self.assertEqual(result, 1)
+            self.assertEqual(summary["valid_episodes"], 50)
+            self.assertIn("Cgroup memory reserve", summary["run_error"])
+        self.assertTrue(all(process.returncode is not None for process in processes.processes))
+
+    def test_resume_keeps_290_results_and_runs_only_the_remaining_210(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory)
+            config = dict(suite="libero_10", seed=7, task_ids=list(range(10)), trials_per_task=50,
+                          checkpoint=parallel.CHECKPOINT)
+            (source / "run_config.json").write_text(json.dumps(config), encoding="utf-8")
+            valid_counts = [50, 48, 45, 46, 34, 41, 26, 0, 0, 0]
+            timeouts = [2, 0, 3, 0, 1, 1, 2, 0, 0, 0]
+            for task, count in enumerate(valid_counts[:7]):
+                client_dir = source / "tasks/task{:02d}/client/run".format(task)
+                client_dir.mkdir(parents=True)
+                rows = [episode(task, init, "timeout" if init < timeouts[task] else "success") for init in range(count)]
+                if task in range(1, 6):
+                    rows.append(episode(task, count, "interrupted"))
+                (client_dir / "episodes.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+                (client_dir / "run_config.json").write_text(json.dumps({"server_metadata": {
+                    "evaluation": {"checkpoint_manifest": {"sha256": "0" * 64}}}}), encoding="utf-8")
+            original = {path: path.read_bytes() for path in source.rglob("*.json*")}
+            processes = SimulatedProcesses()
+            with self.run_controller(processes, ["--resume-from", str(source)]) as (result, run_dir):
+                summary = json.loads((run_dir / "summary.json").read_text())
+                self.assertEqual(result, 0, summary)
+                self.assertEqual(summary["valid_episodes"], 500)
+                self.assertEqual(summary["retained_episodes"], 290)
+                self.assertEqual(summary["new_valid_episodes"], 210)
+                self.assertEqual(summary["timeouts"], 9)
+                self.assertEqual(summary["interrupted_episodes"], 0)
+                args = SimpleNamespace(**config, resume_from=run_dir)
+                rows, starts, checkpoint_hash = parallel.resume_state(args)
+                self.assertEqual(len(rows), 500)
+                self.assertTrue(all(start["first_init_state"] == 50 for start in starts.values()))
+                self.assertEqual(checkpoint_hash, "0" * 64)
+            clients = [process for process in processes.processes if not process.model]
+            self.assertEqual(len(clients), 9)
+            for client in clients:
+                self.assertEqual(client.first_init, valid_counts[client.task_id])
+                self.assertEqual(int(client.command[client.command.index("--request-offset") + 1]),
+                                 valid_counts[client.task_id] * 2)
+            self.assertEqual(original, {path: path.read_bytes() for path in original})
 
     def test_failed_task_retains_error_and_stops_scheduling_new_tasks(self):
         processes = SimulatedProcesses(fail_task=0)

@@ -1,25 +1,26 @@
 # B3：π₀.₅-LIBERO-Long 的 500 个 episode
 
-前置的 [B2 smoke](libero_smoke.md)已由服务器回传确认 10/10 成功。现在将每任务的初始化范围扩展到官方 `initial_states[0:50]`：10 个任务 × 50 个初始状态，共 500 个 episode，环境 seed 7。正式 500 回合尚未执行，不沿用 smoke 的 100% 作为正式结果。
+前置的 [B2 smoke](libero_smoke.md)已由服务器回传确认 10/10 成功。B3 使用官方 `initial_states[0:50]`，10 个任务各 50 个初始状态，共 500 个 episode，环境 seed 7。2026-11-12 的并行运行在端口交接时中断，已记录 290 个有效回合，包含 281 次成功和 9 次超时，完整结果等待补齐剩余 210 回合。
 
 ## 1 号 H100 并行运行
 
-当前选择在 1 号 H100 上运行多组模型服务与 LIBERO 仿真进程，显存目标为 **70 GiB，即 71680 MiB**。每组负责一个任务的 50 个初始状态，10 个任务合计 500 回合。
+按服务器管理员要求，当前并发上限为 **3 组**，相当于上一轮实际 7 组的约 43%。使用 1 号 H100，显存目标下调为 **35 GiB**。每组模型和仿真共享 2 个固定逻辑 CPU，3 组共覆盖 6 个逻辑 CPU。每组负责一个任务的初始状态，10 个任务合计 500 回合。
 
 先在终端 1 按 `Ctrl+C` 停止当前手动启动的模型服务，再在一个终端执行下面的命令。这个入口负责启动和回收全部模型、仿真子进程。
 
 ```bash
 cd ~/canyon43079/H-JEPA-VerifierVLA &&
 git pull --ff-only origin main &&
-bash scripts/run_libero_parallel.sh --gpu 1 --egl-device 1 --target-vram-gib 70
+bash scripts/run_libero_parallel.sh --gpu 1 --egl-device 1 --target-vram-gib 35 --max-workers 3 --cpus-per-worker 2
 ```
 
 调度过程如下。
 
-1. 记录 GPU 原有占用，启动任务 0 的模型，预热后启动它的仿真进程。
-2. 首个回合结束后，用这一阶段采样到的显存峰值增量估计一组模型和仿真的开销。这个回合计入 500 回合。
-3. 按 `floor((71680 - 原有占用 MiB) / 单组开销 MiB)` 计算并发数，上限为剩余任务数和 `--max-workers`，后者默认 10。终端输出 `Measured ... GiB per warmed model/simulator, selected N parallel tasks`。
-4. 逐组加载、预热，再启动各自的仿真。已有任务同时继续评测，新增组还要满足当时的剩余显存预算。一个任务完成后释放自己的服务，并调度下一个任务。
+1. 读取 GPU 占用、cgroup 内存和 CPU 配额。首次加载预估需要 24 GiB 主存，并保留 16 GiB 余量，因此初始可用主存至少需要 40 GiB。这些数值是本次运行采用的调度预算。
+2. 启动首个待完成任务的模型，预热后启动它的仿真。首个新回合结束后，用这一阶段的 GPU 和主存峰值增量估计单组开销，增加 25% 余量。主存的单组预留至少为 16 GiB。
+3. 由显存预算计算并发数，再应用 3 组上限。后续采样若显示更高的平均显存开销，会提高单组预留并降低后续并发上限。
+4. 逐组加载、预热。每次新增组都检查当前 GPU、cgroup 主存余量和采样 CPU 用量，CPU 配额额外留出 2 核空间。主存加载过程中若进入 16 GiB 预留区，停止这组新加载服务，已运行的评测继续完成。
+5. 一个任务完成后释放自己的服务，并调度下一个任务。新任务优先使用独立端口，端口检查兼容 POSIX `TIME_WAIT`，实际被占用的端口自动避让。启动失败时保存错误并让其他活动任务完成。
 
 每个模型子进程设置 `CUDA_VISIBLE_DEVICES=1`，每个仿真子进程设置 `MUJOCO_EGL_DEVICE_ID=1`。JAX 使用 `XLA_PYTHON_CLIENT_PREALLOCATE=false` 按需分配，各模型服务从 8100 端口起占用独立端口。显存目标通过采样和整组数量控制，实际占用需要观察服务器上的运行记录。按需分配选项的行为见 [JAX 官方说明](https://docs.jax.dev/en/latest/gpu_memory_allocation.html)。
 
@@ -27,8 +28,8 @@ bash scripts/run_libero_parallel.sh --gpu 1 --egl-device 1 --target-vram-gib 70
 
 结果位于 `outputs/pi05_libero_parallel/pi05_libero_10_gpu1_seed7_<UTC>/`。
 
-- `run_config.json` 保存目标显存、测得的单组开销、选定并发数和采样协议。
-- `gpu.csv` 每约两秒记录显存、GPU 利用率和活动任务数。终端每约 30 秒显示进度。
+- `run_config.json` 保存目标显存、测得的单组开销、选定并发数、CPU 分配、初始 cgroup 状态和采样协议。
+- `gpu.csv` 每约两秒记录显存、GPU 利用率、活动任务数、cgroup 主存余量和采样 CPU 用量。终端每约 30 秒显示进度。
 - `summary.json` 保存合并进度，结束时加入总耗时、每小时有效回合数和采样显存峰值。
 - `episodes.jsonl` 在结束时汇总各任务记录并校验 task/init ID 的唯一覆盖。
 - `tasks/taskXX/` 保存该任务的模型与仿真日志、检查点指纹、回合记录、视频和观测。
@@ -37,7 +38,30 @@ bash scripts/run_libero_parallel.sh --gpu 1 --egl-device 1 --target-vram-gib 70
 
 ### 已有速度与显存观测
 
-2026-11-12 用户回传的客户端启动前快照显示 GPU 1 占用 **8753 MiB，约 8.55 GiB**，利用率为 0%。B2 日志中后九个回合合计约 162.2 秒，平均约 18 秒，500 回合串行粗估约 2.5–3 小时。并行运行的显存峰值、吞吐量和总耗时由这次服务器运行测量，用 `gpu.csv` 和最终 `summary.json` 一起核对。
+2026-11-12 用户回传的客户端启动前快照显示 GPU 1 占用 **8753 MiB，约 8.55 GiB**，利用率为 0%。B2 日志中后九个回合合计约 162.2 秒，平均约 18 秒，500 回合串行粗估约 2.5–3 小时。
+
+首次并行运行测得单组显存 9557 MiB，选择了 7 组。后续采样峰值达到 81006 MiB，即 79.11 GiB，说明初次校准低估了后续需求。这一运行耗时 1555.03 秒，记录 290 个有效回合，含启动和中断收尾的吞吐为约 671 回合/小时。3 组上限及新增 CPU、主存预算下的性能等待本轮服务器测量。
+
+### cgroup 检查与恢复
+
+用户回传的 cgroup v2 快照显示内存上限 200 GiB，当前约 151.75 GiB，硬限额下余量约 48.25 GiB，历史峰值接近 200 GiB。`memory.events` 中 `max=5`、`oom=0`、`oom_kill=0`。`cpu.max=2000000 100000` 对应 20 核配额，CPU affinity 可见 176 个逻辑 CPU。资源检查采用这个容器的 `/sys/fs/cgroup`，同时用宿主机 `MemAvailable` 约束余量。字段含义见 [Linux cgroup v2 文档](https://docs.kernel.org/admin-guide/cgroup-v2.html)。
+
+恢复前执行下面的命令，先验证 Linux 端口回收与调度逻辑并读取资源快照，再启动剩余回合。启动器还会重新检查当时的资源余量。
+
+```bash
+cd ~/canyon43079/H-JEPA-VerifierVLA &&
+git pull --ff-only origin main &&
+env -u PYTHONPATH .venv/bin/python -m unittest discover -s tests -p 'test_libero_parallel.py' &&
+env -u PYTHONPATH .venv/bin/python -m scripts.check_server_resources &&
+bash scripts/run_libero_parallel.sh \
+  --gpu 1 --egl-device 1 --max-workers 3 --cpus-per-worker 2 \
+  --target-vram-gib 35 --host-memory-reserve-gib 16 \
+  --resume-from outputs/pi05_libero_parallel/pi05_libero_10_gpu1_seed7_20261112T113436_567617Z
+```
+
+恢复入口逐项保留成功和超时记录，校验每个任务已有的连续初始状态和请求编号，并核对检查点 SHA-256。任务 0 已完成，任务 1–6 分别从初始状态 48、45、46、34、41、26 继续，任务 7–9 从 0 开始。共保留 290 个有效回合，再运行 210 个回合。
+
+恢复会创建新输出目录，并通过 `retained_episodes.jsonl` 引用旧目录中的有效回合与视频。旧目录中的 5 个中断记录和全部原始文件继续保存。新模型服务从 key 0 按已完成请求次数推进 RNG，首个请求编号接续有效前缀。仿真进程在每个恢复段重新创建并设置 seed 7，`run_config.json` 和最终 scope 记录这个恢复方式。最终汇总同时列出保留数、新完成数和这一恢复段的吞吐。
 
 ## 串行启动
 
@@ -103,3 +127,5 @@ outputs/pi05_libero/pi05_libero_10_baseline_seed7_<UTC>/
 2026-11-12，本地 Python 3.8 的 20 项 CPU 检查通过（17 项 LIBERO 检查、3 项服务记录检查），覆盖 500 个 task/init 组合唯一覆盖、范围边界、同任务环境复用与逐回合 reset、服务器请求顺序、异常不混入成功率、双视角视频以及新旧 smoke 入口兼容。检查点指纹测试验证相同内容移动缓存路径后身份不变、同长度文件内容变化后身份改变；记录包装器测试验证动作内容与调用次数保持不变。三个 Bash 入口的语法、Python 3.8 评测 CLI 和 Python 3.11 服务 CLI 检查通过。服务端仍沿用已验证的上游加载与推理实现；带指纹的新入口实际加载权重、GPU 推理和 500 回合仍由服务器运行验证。
 
 同日增加单 GPU 并行入口后，Python 3.8 的 30 项 CPU 检查通过。其中 13 项并行调度及服务检查也在 Python 3.11 通过，四个 Bash 入口语法和新入口 CLI 检查通过。新增检查覆盖显存预算、设备选择、模拟子进程调度与端口复用、退出时最后一批回合记录、任务异常后的汇总、预热恢复 RNG 和中断时的子进程清理。本机还用上游 WebSocket 服务与 CPU 测试策略验证了 `/healthz`、握手 metadata 和首个请求编号。本地使用 CPU 与模拟子进程验证这些控制逻辑，H100 上的实际并发性能等待服务器测量。
+
+端口与恢复修复后，本地跨 Python 3.8/3.11 共验证 38 项 CPU 检查，包含真实端口占用避让、启动失败后的其他任务收尾、290+210 回合的恢复合并、cgroup 配额和 CPU affinity。JAX CPU 检查确认恢复得到的 key 与逐次上游 split 一致。POSIX `TIME_WAIT` 回归需要在 Linux 运行，已列入上面的服务器命令。恢复后的 H100 运行仍需服务器验证。
