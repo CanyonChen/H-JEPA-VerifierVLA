@@ -110,7 +110,28 @@ MUJOCO_EGL_DEVICE_ID=1 bash scripts/run_libero_check.sh --port 8001 --task-id 1
 - Python 3.8 / websockets 13.1 客户端与 Python 3.11 / websockets 15.0.1 服务端通过本机回环通信，完整传输两张图像、状态和文字，并收到预期的 `(10, 7)` 动作。该检查使用探针策略，没有加载模型权重。
 - Python 3.8 语法及检查入口帮助、三个 Bash 脚本语法、服务参数与上游 Tyro 数据类定义的一致性检查通过。LIBERO 和 `openpi-client` 的本地 editable 包构建通过。
 
-本地验证没有运行 NVIDIA GPU、EGL 或真实模型服务推理。服务器此前已通过初版 74 个包的依赖检查及修复后的 LIBERO 包导入，随后在 BDDL 导入处发现缺少 `future`，修复过程见下文。2026-11-12，用户确认改名后的 `~/canyon43079/H-JEPA-VerifierVLA` 中环境重建已完成，详细日志和 EGL 报告尚未回传。下一步从第 2 节启动模型服务，再运行第 3 节真实观测检查；该检查会同时记录 EGL 渲染、策略通信和动作执行结果。真实观测通信与完整 episode 尚无服务器结果。根模型环境的 `pyproject.toml` 与 `uv.lock` 未修改。
+本地验证没有运行 NVIDIA GPU、EGL 或真实模型服务推理。服务器此前遇到的 LIBERO 包发现及 BDDL 缺少 `future` 问题已修复，过程见下文。2026-11-12，用户确认新路径中的环境重建完成，并回传下述 EGL、真实观测通信和 5 步动作执行结果。根模型环境的 `pyproject.toml` 与 `uv.lock` 未修改。
+
+## 服务器结果：真实观测与 5 步动作执行
+
+2026-11-12，用户回传提交 `4e8cdae86a11125abe844464a1f1fdd20e5f917d` 的运行结果，记录见 [pi05_libero_real_observation_seed7.json](results/pi05_libero_real_observation_seed7.json)。该文件是终端 JSON 的副本；服务器的原始 PNG、NPZ、动作和日志尚未拉取到本地。
+
+| 项目 | 本次结果 |
+| --- | --- |
+| 任务 | `libero_10` / task 0 / init state 0 / seed 7 |
+| 任务描述 | put both the alphabet soup and the tomato sauce in the basket |
+| EGL | `PASS`；NVIDIA H100 80GB HBM3，OpenGL 4.6.0 / NVIDIA 580.159.03 |
+| 观测 | 两路 `224×224×3` RGB 图像和 8 维机器人状态 |
+| 策略通信 | `PASS`；返回有限的 `(10, 7)` 动作块 |
+| 动作执行 | 5 步；`task_success_observed: false` |
+| 首次往返 | 34.589 秒，包含首次真实观测调用的 JIT；不是稳定延迟 |
+| 服务器输出 | `outputs/libero_check/run_20261112T091006_006571Z/` |
+
+模型服务日志确认权重从 `~/.cache/openpi` 恢复，并从检查点 assets 加载 norm stats。客户端的 `libOpenGL.so.0` 加载提示、缺少可选 `OpenGL_accelerate`、robosuite 私有宏提示及旧 Gym 提示没有阻止本次运行；实际渲染后端和报告证明这次 EGL 检查通过。`task_success_observed: false` 表示这 5 步内没有完成任务，不是接口检查失败，也不是完整回合的失败结果。
+
+## 4. 十个任务各一个完整 episode
+
+B0 的 GPU/EGL 环境检查与 B1 的真实观测检查已通过。下一步按 [LIBERO smoke 运行说明](libero_smoke.md)重启模型服务，再运行 `bash scripts/run_libero_smoke.sh`。默认串行执行 LIBERO-Long 十个任务，每任务初始状态 0、环境 seed 7；每回合保留视频、观测、动作和结果。完整 episode 及成功率结果仍待服务器执行。
 
 ## LIBERO 安装导入失败与修复
 
@@ -134,4 +155,4 @@ MUJOCO_EGL_DEVICE_ID=1 bash scripts/run_libero_check.sh --port 8001 --task-id 1
 
 本地验证先在修复前复现相同的 `ModuleNotFoundError`，补齐 `future` 后三项回归全部通过。额外的 CPU 检查实际导入 `OffScreenRenderEnv` 及其依赖链，使用 LIBERO 解析器读取十个任务，确认任务类型均已注册；未创建仿真环境。锁文件只新增 `future`，其余依赖版本保持原样，离线锁文件校验与 Linux 冻结安装预演通过。
 
-完整导入检查的本地条件是 Windows / Python 3.8.20、robosuite 1.4.1、MuJoCo 3.2.3。仅在忽略的 `.venv-libero-check` 内，配置 `MUJOCO_GPU_RENDERING=False`、`MUJOCO_GL=disable`，并将 MuJoCo 自带 DLL 放到 robosuite 旧版 Windows 加载路径，避免触发图形设备初始化。此配置用于本地导入验证；服务器入口继续使用 EGL，实际 GPU 渲染仍待服务器检查。
+完整导入检查的本地条件是 Windows / Python 3.8.20、robosuite 1.4.1、MuJoCo 3.2.3。仅在忽略的 `.venv-libero-check` 内，配置 `MUJOCO_GPU_RENDERING=False`、`MUJOCO_GL=disable`，并将 MuJoCo 自带 DLL 放到 robosuite 旧版 Windows 加载路径，避免触发图形设备初始化。此配置用于本地导入验证；服务器入口继续使用 EGL，实际 GPU 渲染后来已由 2026-11-12 的服务器报告确认通过。

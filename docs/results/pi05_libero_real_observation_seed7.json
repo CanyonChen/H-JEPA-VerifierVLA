@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "python": "3.8.20",
+  "mode": "real_observation_and_actions",
+  "suite": "libero_10",
+  "task_id": 0,
+  "init_state_id": 0,
+  "seed": 7,
+  "egl_device_id": "1",
+  "output_dir": "/home/jovyan/canyon43079/H-JEPA-VerifierVLA/outputs/libero_check/run_20261112T091006_006571Z",
+  "policy_roundtrip": "PASS",
+  "action_steps": 5,
+  "scope": "EGL and interface check; no complete episode or success-rate evaluation",
+  "versions": {
+    "libero": "0.1.0",
+    "openpi-client": "0.1.0",
+    "torch": "1.11.0+cpu",
+    "numpy": "1.22.4",
+    "robosuite": "1.4.1",
+    "mujoco": "3.2.3",
+    "websockets": "13.1"
+  },
+  "repo_commit": "4e8cdae86a11125abe844464a1f1fdd20e5f917d",
+  "task_description": "put both the alphabet soup and the tomato sauce in the basket",
+  "opengl": {
+    "vendor": "NVIDIA Corporation",
+    "renderer": "NVIDIA H100 80GB HBM3/PCIe/SSE2",
+    "version": "4.6.0 NVIDIA 580.159.03"
+  },
+  "egl_render": "PASS",
+  "state_shape": [8],
+  "image_shape": [224, 224, 3],
+  "server_metadata": {},
+  "roundtrip_seconds": 34.58924042060971,
+  "action_shape": [10, 7],
+  "task_success_observed": false
+}
