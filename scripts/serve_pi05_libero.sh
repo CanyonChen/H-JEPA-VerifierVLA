@@ -9,7 +9,6 @@ exec env -u PYTHONPATH \
     XLA_PYTHON_CLIENT_PREALLOCATE=false \
     JAX_PLATFORMS=cuda \
     OPENPI_DATA_HOME="${OPENPI_DATA_HOME:-$HOME/.cache/openpi}" \
-    .venv/bin/python -u openpi/scripts/serve_policy.py \
-    --port "${PI05_PORT:-8000}" policy:checkpoint \
-    --policy.config=pi05_libero \
-    --policy.dir="${PI05_CHECKPOINT:-gs://openpi-assets/checkpoints/pi05_libero}"
+    .venv/bin/python -u -m scripts.serve_pi05_libero \
+    --port "${PI05_PORT:-8000}" \
+    --checkpoint "${PI05_CHECKPOINT:-gs://openpi-assets/checkpoints/pi05_libero}"

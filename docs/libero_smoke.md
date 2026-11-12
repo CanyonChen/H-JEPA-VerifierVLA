@@ -1,6 +1,27 @@
 # B2：π₀.₅-LIBERO 十个完整 episode
 
-2026-11-12 的[服务器回传](results/pi05_libero_real_observation_seed7.json)已确认 H100 EGL、真实观测推理和 5 步动作执行通过。本步骤首次验证完整回合：默认 `libero_10` 十个任务按顺序各运行一次，使用每任务初始状态 0、环境 seed 7。服务器的完整回合结果仍待回传，不能将这十次 smoke 检查当作每任务 50 次的正式 baseline。
+2026-11-12，服务器已通过本步骤：`libero_10` 十个任务各运行初始状态 0、环境 seed 7，10/10 成功，没有超时或基础设施异常。该结果确认完整回合运行链路，不能将十次 smoke 检查当作每任务 50 次的正式 baseline。下一步见 [B3：500 个 episode](libero_baseline.md)。
+
+## 服务器结果：10/10 成功
+
+用户回传的汇总保存在 [pi05_libero_smoke_seed7.json](results/pi05_libero_smoke_seed7.json)。以下逐任务数字抄自同次终端日志，策略步数合计 2486、推理请求合计 500；每行请求数均等于 `ceil(policy_steps / 5)`，符合固定执行前缀。这里的 500 是请求数，episode 数为 10。
+
+| Task ID | 结果 | 策略步数 | 推理请求数 |
+| --- | --- | --- | --- |
+| 0 | success | 267 | 54 |
+| 1 | success | 245 | 49 |
+| 2 | success | 210 | 42 |
+| 3 | success | 220 | 44 |
+| 4 | success | 256 | 52 |
+| 5 | success | 170 | 34 |
+| 6 | success | 198 | 40 |
+| 7 | success | 233 | 47 |
+| 8 | success | 434 | 87 |
+| 9 | success | 253 | 51 |
+
+产物目录为 `outputs/pi05_libero/pi05_libero_10_smoke_seed7_20261112T093146_955970Z/`。原始 `run_config.json`、`episodes.jsonl`、视频和 NPZ 尚未拉取到本地，不能将终端摘录写成这些文件的副本，也尚未逐帧检查视频。粘贴的终端文本中 task 7 的开始行重复出现，但完成行只有一条，汇总也只有 10 个有效回合；仅凭这行重复不能认定任务执行了两次。
+
+客户端先等待服务，随后在 17:32:45 开始 task 0，最后在 17:36:25 完成 task 9。首次回合包含 JIT 和环境初始化，不能用它估算稳定单次推理延迟。任务 8 使用 434 个策略步，仍在 Long 的 520 步预算内。
 
 ## 运行
 
@@ -60,7 +81,7 @@ outputs/pi05_libero/pi05_libero_10_smoke_seed7_<UTC>/
 
 每次策略请求的 NPZ 保存两路模型输入、8 维状态和任务文字；`decisions.jsonl` 保存请求序号、策略步位置、完整动作块、实际执行步数和客户端往返耗时。请求失败时保留本次请求的观测与记录。请求序号是本客户端的尝试顺序；在通信无异常且遵守服务重启、单客户端、无额外请求协议的运行中，它与服务端采样顺序对应。首次往返包含 JIT，往返耗时不含本地视频/NPZ 保存。
 
-`run_config.json` 保存代码提交、工作区状态、依赖版本、任务与执行协议、连接端点和服务返回的 metadata。当前服务 metadata 为空，因此 `expected_policy_config`、`expected_checkpoint` 是启动约定，并非服务端验证的权重身份。正式 B3 运行前再补齐权重标识与服务配置记录。
+`run_config.json` 保存代码提交、工作区状态、依赖版本、任务与执行协议、连接端点和服务返回的 metadata。本次 B2 使用的旧服务 metadata 为空，因此 `expected_policy_config`、`expected_checkpoint` 只是启动约定。B3 已增加[带检查点指纹的服务入口](libero_baseline.md)，后续运行会记录服务实际加载的目录、内容指纹和请求编号；这不追溯补造本次 B2 的服务身份记录。
 
 `episodes.jsonl` 每完成一个回合就追加一行。最终汇总重新读取这些行生成；每回合 `result.json` 同时保留结果、错误阶段、策略步数、耗时和渲染设备，视频不会被其他回合或其他运行覆盖。
 

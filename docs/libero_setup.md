@@ -60,7 +60,7 @@ MUJOCO_EGL_DEVICE_ID=1 bash scripts/setup_libero_env.sh
 CUDA_VISIBLE_DEVICES=1 bash scripts/serve_pi05_libero.sh
 ```
 
-脚本使用根模型环境和上游 `serve_policy.py`，明确加载 `pi05_libero`，默认端口为 8000。权重沿用 `OPENPI_DATA_HOME`，未设置时使用 `~/.cache/openpi`，复用此前已下载的检查点及 norm stats。它关闭 JAX 显存预分配并要求 CUDA 后端。
+脚本使用根模型环境，明确加载 `pi05_libero`，默认端口为 8000。B3 起由项目的 `serve_pi05_libero.py` 调用上游策略加载器与 WebSocket 服务，另记录检查点指纹和服务请求编号。权重沿用 `OPENPI_DATA_HOME`，未设置时使用 `~/.cache/openpi`，复用此前已下载的检查点及 norm stats；计算指纹会读取缓存文件。入口关闭 JAX 显存预分配并要求 CUDA 后端。
 
 等待服务出现监听日志，再执行下一步。加载检查点和首次真实观测的 JIT 编译仍需时间；同一服务进程的后续调用复用编译结果。
 
@@ -131,7 +131,7 @@ MUJOCO_EGL_DEVICE_ID=1 bash scripts/run_libero_check.sh --port 8001 --task-id 1
 
 ## 4. 十个任务各一个完整 episode
 
-B0 的 GPU/EGL 环境检查与 B1 的真实观测检查已通过。下一步按 [LIBERO smoke 运行说明](libero_smoke.md)重启模型服务，再运行 `bash scripts/run_libero_smoke.sh`。默认串行执行 LIBERO-Long 十个任务，每任务初始状态 0、环境 seed 7；每回合保留视频、观测、动作和结果。完整 episode 及成功率结果仍待服务器执行。
+B0/B1 与 [B2 smoke](libero_smoke.md)均已在服务器通过：LIBERO-Long 十个任务各一个完整 episode，初始状态 0、环境 seed 7，10/10 成功。复跑 B2 仍使用 `bash scripts/run_libero_smoke.sh`；当前下一步是 [B3：每任务 50 个初始状态](libero_baseline.md)，正式 500 回合结果待服务器执行。
 
 ## LIBERO 安装导入失败与修复
 

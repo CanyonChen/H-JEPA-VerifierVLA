@@ -3,7 +3,7 @@
 更新日期：2026-11-12
 
 所属阶段：[总实验计划](plan.md)中的 P0 / baseline_setup。  
-当前状态：已完成论文、官方资源与本地代码静态核对，openpi、ALOHA 与 LIBERO 源码已按固定版本完整准备，并作为本仓库的普通目录管理。根据用户回传日志，统一 uv 模型环境的依赖及 CPU/GPU 检查均通过，官方 π₀.₅-LIBERO 权重、配套 norm stats 和两次 GPU 合成观测推理均通过。2026-11-12，改名后的 `~/canyon43079/H-JEPA-VerifierVLA` 完成环境重建；H100 EGL、真实 LIBERO 观测推理和 5 步动作执行均通过，记录见[回传报告](results/pi05_libero_real_observation_seed7.json)。下一步是 B2 十个完整 episode 的检查；训练与完整 episode 评测尚未执行。
+当前状态：模型环境、CPU/GPU 检查、官方 π₀.₅-LIBERO 检查点与 H100 EGL 均已通过。2026-11-12，服务器在 `~/canyon43079/H-JEPA-VerifierVLA` 完成 B2：十个任务各一个完整 episode，10/10 成功，无超时和基础设施异常，共 2486 个策略步、500 次推理请求，见[回传汇总](results/pi05_libero_smoke_seed7.json)和[逐任务摘录](libero_smoke.md)。B3 每任务 50 次的调度、检查点指纹及逐任务统计已准备；500 个 episode 的正式 Long 评测与训练尚未执行。
 
 资源：八卡 A100/H100 服务器、MuJoCo；Piper 真机用于后续阶段。
 
@@ -41,7 +41,7 @@
 | LIBERO 必需文件 | 已确认 `requirements.txt`、`bddl_files/`、`init_files/` 与 `assets/` 存在 |
 | Git 操作入口 | 在本项目根目录执行提交与更新；三个源码目录不再各自维护 Git 历史 |
 
-先前的 LIBERO 检出不完整与 ALOHA 子模块指针差异已在导入前解决。服务器统一模型环境、官方检查点的合成与真实观测推理、EGL 和 5 步动作执行均通过；后续模型服务复用现有权重缓存，继续完整 episode 检查。
+先前的 LIBERO 检出不完整与 ALOHA 子模块指针差异已在导入前解决。服务器统一模型环境、官方检查点的合成与真实观测推理、EGL 和十个完整 episode 均通过；后续复用权重缓存，继续 500 回合正式 Long 评测。
 
 **执行计划表。**
 
@@ -49,14 +49,14 @@
 | --- | --- | --- | --- | --- |
 | B0 / pi05_setup | openpi、ALOHA 与 LIBERO 本地源码已就绪；在服务器准备相同版本工作副本，记录驱动、GPU、依赖、磁盘缓存位置，建立模型与仿真两个环境 | 环境及版本记录 | 服务器源码、任务 assets 和初始状态齐全；GPU、离屏渲染可用 | 模型 CPU/GPU 与 H100 NVIDIA EGL 均通过 |
 | B1 / pi05_inference | 加载官方检查点及 norm stats；先验证直接调用的合成观测推理，再通过官方 WebSocket 客户端检查真实 LIBERO 观测的输入输出 | 推理日志、输入输出样例、首次及后续调用耗时 | 返回有限数值的 `(10,7)` 动作块；真实观测预处理与官方一致 | 合成与真实观测推理均通过；真实动作执行 5 步 |
-| B2 / pi05_libero_smoke | 运行 `libero_10` 每任务 1 个 episode，共 10 个；检查视频、动作执行和终止逻辑 | 十个任务的闭环记录与视频 | 无未解释的加载、通信或渲染错误；成功与失败均有可追溯记录 | [记录入口](libero_smoke.md)已准备；服务器待执行 |
-| B3 / pi05_long_baseline | 补齐逐 episode 记录和视频唯一命名；按固定初始化运行 Long 每任务 50 次 | 500 个 episode 的记录、逐任务成功率、Long 总结果 | 预定 episode 全部有有效结果；基础设施异常已单列并处理 | 待执行 |
+| B2 / pi05_libero_smoke | 运行 `libero_10` 每任务 1 个 episode，共 10 个；检查视频、动作执行和终止逻辑 | 十个任务的闭环记录与视频 | 无未解释的加载、通信或渲染错误；成功与失败均有可追溯记录 | 服务器 10/10 成功；原始视频尚未拉取及逐帧复核 |
+| B3 / pi05_long_baseline | 补齐逐 episode 记录和视频唯一命名；按固定初始化运行 Long 每任务 50 次 | 500 个 episode 的记录、逐任务成功率、Long 总结果 | 预定 episode 全部有有效结果；基础设施异常已单列并处理 | [500 回合入口](libero_baseline.md)与服务记录已准备，CPU 检查通过；服务器待执行 |
 | B4 / pi05_full_baseline | 用相同模型和执行协议完成 Spatial、Object、Goal，各 500 次；汇总四套 | 共 2000 个 episode 的结果及官方参考比较 | 四套逐任务计数可核对；总指标可从逐 episode 数据重算 | 待执行 |
 | B5 / pi05_verifier_handoff | 固定 checkpoint、输入输出、执行长度及采样规则；整理后续候选与 verifier 接口缺口 | 基线交接记录 | 后续能够明确只改变候选生成/选择部分，保留同一基础策略及可比执行协议 | 待执行 |
 
 单 GPU 先建立参考结果。八卡优先用于后续独立评测实例，不需要在本阶段启动分布式训练。分片评测前明确每个实例的 GPU、端口、任务/episode 范围和输出目录，并保证计数不重复；官方 runner 当前没有 task/episode 分片参数。
 
-**环境与启动方式。** 模型侧采用本项目根目录的统一 uv 环境，供 openpi、H-JEPA 模型核心与 VeriVLA 模型共用，安装与验证见 [environment.md](environment.md)。LIBERO 客户端使用独立的 `.venv-libero`，通过模型服务通信。[LIBERO 安装、EGL 与真实观测检查](libero_setup.md)已在服务器通过；接下来按 [B2 运行说明](libero_smoke.md)执行完整 episode。下方官方 Docker 命令保留为部署参考。
+**环境与启动方式。** 模型侧采用本项目根目录的统一 uv 环境，供 openpi、H-JEPA 模型核心与 VeriVLA 模型共用，安装与验证见 [environment.md](environment.md)。LIBERO 客户端使用独立的 `.venv-libero`，通过模型服务通信。EGL、真实观测和 B2 已在服务器通过；接下来按 [B3 运行说明](libero_baseline.md)执行 500 个 episode。下方官方 Docker 命令保留为部署参考。
 
 | 环节 | 已核对的要求 |
 | --- | --- |
@@ -114,18 +114,13 @@ export CLIENT_ARGS="--args.host 127.0.0.1 --args.port 8000 --args.task-suite-nam
 MUJOCO_GL=egl docker compose -f examples/libero/compose.yml up --build --abort-on-container-exit
 ```
 
-该命令每个任务运行一次，总计 10 个 episodes。真正的单任务/单 episode 调试需要后续增加筛选入口，不能把 `num-trials-per-task=1` 解释成整套只运行一次。正式运行改为每任务 50 次，并在 B3 前完成下面的记录改动。
+该官方模板每个任务运行一次，总计 10 个 episodes。项目自己的入口现已支持 `--task-id` 与 `--init-state-id` 筛选；正式 B3 使用 [run_libero_baseline.sh](../scripts/run_libero_baseline.sh)，包含每任务 50 次调度和结果记录，而非直接把上述模板的次数改成 50。
 
 完成上述检查后，原生模型服务从项目根目录使用统一环境启动：
 
 ```bash
 cd ~/canyon43079/H-JEPA-VerifierVLA
-CUDA_VISIBLE_DEVICES=1 XLA_PYTHON_CLIENT_PREALLOCATE=false JAX_PLATFORMS=cuda \
-  env -u PYTHONPATH .venv/bin/python openpi/scripts/serve_policy.py \
-  --port 8000 \
-  policy:checkpoint \
-  --policy.config=pi05_libero \
-  --policy.dir=gs://openpi-assets/checkpoints/pi05_libero
+CUDA_VISIBLE_DEVICES=1 bash scripts/serve_pi05_libero.sh
 ```
 
 在另一个终端的项目根目录，可使用 `env -u PYTHONPATH .venv/bin/python openpi/examples/simple_client/main.py --env LIBERO --host 127.0.0.1 --port 8000` 检查通信。随机输入推理不代表闭环评测通过。正式评测前重新启动服务，避免调试请求改变正式采样序列。完整环境命令以[官方 LIBERO 安装说明](../openpi/examples/libero/README.md)为准。
@@ -183,7 +178,7 @@ CUDA_VISIBLE_DEVICES=1 XLA_PYTHON_CLIENT_PREALLOCATE=false JAX_PLATFORMS=cuda \
 
 只跑 Long 时与 92.4% 对照，不能与四套平均比较。正式报告包含各任务成功数/有效回合数、suite 成功率、四套平均和置信区间。官方值用于定位复现差距，不作为必须精确命中的验收阈值；差距明显时按版本、checkpoint、归一化、图像、动作、初始化、步数与采样顺序排查，不靠挑选种子刷到参考值。
 
-**B3 前需要补齐的最小记录功能。** 当前官方 runner 主要输出控制台统计和视频，存在两个直接影响记录的问题：同任务同结果的视频会覆盖，异常被捕获后仍进入 episode 统计。B2 新增的 [eval_libero.py](../scripts/eval_libero.py)已补入每回合独立目录、完整观测/动作、实际执行前缀、结果汇总和异常分类，动作决策仍遵循官方 10 步预测 / 5 步执行协议。正式 B3 前还需增加每任务 50 个初始状态的调度、checkpoint 标识及服务配置记录，并根据 B2 结果验证完整运行。
+**B3 的记录功能。** 官方 runner 的同任务同结果视频会覆盖，异常被捕获后仍进入 episode 统计。本项目 [eval_libero.py](../scripts/eval_libero.py)已补入每回合独立目录、完整观测/动作、实际执行前缀、汇总和异常分类，B2 在服务器运行通过。B3 进一步加入每任务 50 个初始状态的调度、逐任务统计、Wilson 95% 区间，以及[服务端检查点指纹和请求编号](../scripts/serve_pi05_libero.py)。模型加载仍使用上游实现，动作生成与 10 步预测 / 5 步执行协议保持不变。
 
 | 内容 | 记录要求 |
 | --- | --- |
@@ -196,7 +191,7 @@ CUDA_VISIBLE_DEVICES=1 XLA_PYTHON_CLIENT_PREALLOCATE=false JAX_PLATFORMS=cuda \
 
 正式评测中，通信、渲染等基础设施异常单列，修复后按相同 episode ID 定向补跑；任务失败和超时保留原结果。异常不能默默从分母中删除，也不能通过反复重跑任务失败来替换结果。`policy_timing.infer_ms` 的计时点早于结果转 CPU，不能单独当作完整推理延迟。
 
-下面是后续正式 baseline 的交付约定；当前 B2 使用 `outputs/pi05_libero/<run_id>/`，具体已实现的产物结构见 [smoke 运行说明](libero_smoke.md)：
+下面保留正式结果归档的交付约定。B2/B3 运行目录均使用 `outputs/pi05_libero/<run_id>/`，当前具体产物结构见 [B3 运行说明](libero_baseline.md)；下列结构并非已经生成的正式结果：
 
 ```text
 results/pi05_libero/<run_id>/
@@ -240,8 +235,9 @@ results/pi05_libero/<run_id>/
 - [x] 准备独立的 LIBERO 仿真环境，验证 H100 NVIDIA EGL 离屏渲染。
 - [x] 加载官方 checkpoint 及配套 norm stats，在服务器 GPU 上通过合成观测推理检查。
 - [x] 完成真实观测推理及 5 步动作执行，核对两路图像及动作约定。
-- [ ] 完成十个任务各一个完整 episode 的 smoke 闭环。
-- [ ] 在服务器验证新增的逐 episode 记录、唯一视频命名与异常分类，保持策略执行行为一致。
+- [x] 完成十个任务各一个完整 episode 的 smoke 闭环：10/10 成功。
+- [x] 在服务器完成逐 episode 记录与唯一视频路径；异常分类由 CPU 探针验证，策略执行协议不变。
+- [ ] 拉取原始视频与记录，完成视觉复核和完整产物归档。
 - [ ] 完成 Long 的 500 个有效 episode，保存逐任务结果和失败样例。
 - [ ] 完成其余三个 suite，得到可重算的 2000-episode baseline 报告。
 - [ ] 保存单候选、10 步预测 / 5 步执行的固定协议及服务端采样记录。

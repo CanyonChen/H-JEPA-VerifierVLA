@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "scope": "complete-episode smoke check; not the 500-episode baseline",
+  "planned_episodes": 10,
+  "recorded_episodes": 10,
+  "unattempted_episodes": 0,
+  "valid_episodes": 10,
+  "successes": 10,
+  "timeouts": 0,
+  "infrastructure_errors": 0,
+  "interrupted_episodes": 0,
+  "success_rate": 1.0,
+  "policy_steps": 2486,
+  "policy_requests": 500,
+  "run_error": null,
+  "output_dir": "/home/jovyan/canyon43079/H-JEPA-VerifierVLA/outputs/pi05_libero/pi05_libero_10_smoke_seed7_20261112T093146_955970Z",
+  "suite": "libero_10"
+}
