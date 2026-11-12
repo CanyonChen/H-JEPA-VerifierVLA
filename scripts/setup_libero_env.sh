@@ -9,7 +9,7 @@ env -u PYTHONPATH \
     UV_PYTHON_DOWNLOADS=automatic \
     UV_HTTP_TIMEOUT=600 \
     UV_CONCURRENT_DOWNLOADS=4 \
-    uv sync --project envs/libero --frozen --reinstall-package libero
+    uv sync --project envs/libero --frozen --no-active --reinstall-package libero
 env -u PYTHONPATH uv pip check --python .venv-libero/bin/python
 env -u PYTHONPATH .venv-libero/bin/python -I -c \
     'import libero, openpi_client; from bddl import parsing; print("LIBERO and BDDL package imports: PASS (" + libero.__file__ + ")")'

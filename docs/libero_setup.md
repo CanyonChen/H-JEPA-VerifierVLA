@@ -22,15 +22,17 @@
 
 ## 1. 安装并检查 EGL
 
+当前服务器项目路径为 `~/canyon43079/H-JEPA-VerifierVLA`。若从旧父目录整体改名而来，先按[父目录改名后的恢复](environment.md#父目录改名后的恢复)备份并重新创建两个虚拟环境。
+
 在服务器项目根目录运行：
 
 ```bash
-cd ~/canyon/H-JEPA-VerifierVLA
+cd ~/canyon43079/H-JEPA-VerifierVLA
 git pull --ff-only origin main &&
 MUJOCO_EGL_DEVICE_ID=1 bash scripts/setup_libero_env.sh
 ```
 
-安装脚本自动获取 Python 3.8.20，使用提交的锁文件执行 `uv sync --frozen --reinstall-package libero`，重建 LIBERO 的 editable 安装，随后执行 `uv pip check`、隔离进程中的 LIBERO / BDDL 导入检查和仅渲染检查。定向重装用于修复此前生成的 LIBERO 空壳包；其他已安装依赖继续复用。下载设置沿用模型环境的 `UV_PYTHON_DOWNLOADS=automatic`、`UV_HTTP_TIMEOUT=600`、`UV_CONCURRENT_DOWNLOADS=4`。下载中断后可以重跑同一命令，复用 uv 缓存。
+安装脚本自动获取 Python 3.8.20，使用提交的锁文件执行 `uv sync --frozen --no-active --reinstall-package libero`，重建 LIBERO 的 editable 安装，随后执行 `uv pip check`、隔离进程中的 LIBERO / BDDL 导入检查和仅渲染检查。`--no-active` 明确使用 `.venv-libero`，不采用当前终端中激活的模型环境。定向重装用于修复此前生成的 LIBERO 空壳包；其他已安装依赖继续复用。下载设置沿用模型环境的 `UV_PYTHON_DOWNLOADS=automatic`、`UV_HTTP_TIMEOUT=600`、`UV_CONCURRENT_DOWNLOADS=4`。下载中断后可以重跑同一命令，复用 uv 缓存。
 
 检查入口在导入 LIBERO 前写入 `.venv-libero/libero-config/config.yaml`，指向仓库自带的 BDDL、初始状态与模型资源，避免交互式询问路径。`data/libero/datasets/` 仅作为预留路径创建；这一步不下载训练数据集。
 
@@ -69,7 +71,7 @@ CUDA_VISIBLE_DEVICES=1 bash scripts/serve_pi05_libero.sh
 打开第二个服务器终端，运行：
 
 ```bash
-cd ~/canyon/H-JEPA-VerifierVLA
+cd ~/canyon43079/H-JEPA-VerifierVLA
 MUJOCO_EGL_DEVICE_ID=1 bash scripts/run_libero_check.sh
 ```
 

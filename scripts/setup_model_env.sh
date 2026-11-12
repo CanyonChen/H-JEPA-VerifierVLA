@@ -10,7 +10,7 @@ env -u PYTHONPATH \
     UV_PYTHON_DOWNLOADS=automatic \
     UV_HTTP_TIMEOUT=600 \
     UV_CONCURRENT_DOWNLOADS=4 \
-    uv sync --frozen
+    uv sync --frozen --no-active
 env -u PYTHONPATH uv pip check --python .venv/bin/python
 env -u PYTHONPATH .venv/bin/python scripts/check_model_env.py --device cpu
 

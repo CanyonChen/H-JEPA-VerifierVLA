@@ -31,19 +31,54 @@ VeriVLA 此版本公开模型结构，尚未提供完整训练代码、LIBERO / 
 在已安装 uv 的服务器上执行：
 
 ```bash
-cd ~/canyon/H-JEPA-VerifierVLA
+cd ~/canyon43079/H-JEPA-VerifierVLA
 git pull --ff-only origin main
 bash scripts/setup_model_env.sh
 source .venv/bin/activate
 ```
 
-脚本从根目录执行 `uv sync --frozen`，创建 `.venv/`、安装锁定依赖，随后执行 `uv pip check` 和 CPU 模型检查。`--frozen` 直接使用已提交的 `uv.lock`，不在服务器重新解析或改写锁文件；锁文件与项目配置的一致性在本地通过 `uv lock --check` 验证后随代码提交。
+脚本从根目录执行 `uv sync --frozen --no-active`，创建 `.venv/`、安装锁定依赖，随后执行 `uv pip check` 和 CPU 模型检查。`--frozen` 直接使用已提交的 `uv.lock`，不在服务器重新解析或改写锁文件；锁文件与项目配置的一致性在本地通过 `uv lock --check` 验证后随代码提交。`--no-active` 明确使用项目环境，避免其他已激活环境产生路径不匹配提示。
 
 安装命令设置 `UV_PYTHON_DOWNLOADS=automatic`，在缺少 `.python-version` 指定的 Python 3.11.13 时自动下载，覆盖服务器的 `never` 下载设置；该设置仅对本次安装命令生效。`GIT_LFS_SKIP_SMUDGE=1` 遵循 openpi 的 LeRobot 安装要求；`env -u PYTHONPATH` 防止已有 ROS / 其他项目路径混入本次安装和检查。
 
 下载时设置 `UV_HTTP_TIMEOUT=600`（HTTP 读取超时，秒）和 `UV_CONCURRENT_DOWNLOADS=4`，为服务器镜像下载较大的 GPU 安装包留出更长等待时间，并限制并发请求数。若安装因下载超时中断，直接重新执行上述脚本，复用现有 `.venv/` 和 uv 缓存。仓库锁文件使用官方 PyPI；服务器日志中出现的 Sangfor 镜像地址需要结合服务器的下载源或转发配置判断。延长超时后若仍失败，下一步检查服务器到该镜像的连通性与响应。
 
 模型环境统一在根目录管理。后续从根目录使用 `uv run --frozen ...` 或激活 `.venv/` 后使用 `python ...`；在 `openpi/` 子目录执行其自己的 `uv sync` 会转为管理另一套项目环境。
+
+## 父目录改名后的恢复
+
+2026-11-12，用户确认将服务器父目录 `~/canyon` 重命名为 `~/canyon43079`，当前项目路径为 `~/canyon43079/H-JEPA-VerifierVLA`。脚本根据自身位置计算项目根目录；历史实验报告中的旧输出路径保留为当时的记录。
+
+两个虚拟环境也随父目录移动，激活脚本、可执行脚本及 editable 安装可能保存旧绝对路径。按照 [Python 虚拟环境文档](https://docs.python.org/3/library/venv.html#how-venvs-work)，应在新路径重新创建环境。仅关闭 uv 的路径提示不能修复这些内部引用。
+
+若 VS Code / Cursor 的远程终端会自动执行 `source .../activate`，先在远程用户设置中关闭 Python 自动激活。连接服务器后，打开命令面板中的 `Preferences: Open Remote Settings (JSON)`，将以下键合并到现有设置：
+
+```json
+{
+  "python-envs.terminal.autoActivationType": "off",
+  "python.terminal.activateEnvironment": false,
+  "python.terminal.activateEnvInCurrentTerminal": false
+}
+```
+
+保存后关闭旧终端并新建终端。新设置优先于旧版 Python 扩展设置，具体行为见 [VS Code Python 环境文档](https://code.visualstudio.com/docs/python/environments#terminal-auto-activation)。编辑器选择的解释器仍可用于代码分析；需要手动激活时再执行 `source .venv/bin/activate`。
+
+在新终端执行以下一次性恢复命令。它先把移来的环境改名备份，再按原锁文件安装到新路径；任何步骤失败都会停止：
+
+```bash
+(
+  set -e
+  cd ~/canyon43079/H-JEPA-VerifierVLA
+  git pull --ff-only origin main
+  venv_backup_stamp=$(date +%Y%m%d_%H%M%S)
+  mv -T -- .venv ".venv-before-rename-$venv_backup_stamp"
+  mv -T -- .venv-libero ".venv-libero-before-rename-$venv_backup_stamp"
+  bash scripts/setup_model_env.sh
+  MUJOCO_EGL_DEVICE_ID=1 bash scripts/setup_libero_env.sh
+)
+```
+
+重建会复用 uv 的可用下载缓存；此前检查点仍位于 `~/.cache/openpi`。模型 CPU 检查通过后继续 LIBERO 包导入与 EGL 检查。父目录改名后的服务器重建和 EGL 结果仍待回传。日志只有 `Building ...` 而最终为 `^C` 时，表示构建被手动中断，不是构建器已经报告失败。
 
 ## 验证
 
@@ -57,7 +92,7 @@ source .venv/bin/activate
 使用一张可用 GPU 再检查 CUDA；按服务器当前分配替换 GPU 编号：
 
 ```bash
-cd ~/canyon/H-JEPA-VerifierVLA
+cd ~/canyon43079/H-JEPA-VerifierVLA
 CUDA_VISIBLE_DEVICES=1 env -u PYTHONPATH .venv/bin/python scripts/check_model_env.py --device cuda
 ```
 

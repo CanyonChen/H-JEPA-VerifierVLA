@@ -73,7 +73,7 @@
 **官方检查点加载与合成观测推理（已通过）。** 复跑时在项目根目录执行：
 
 ```bash
-cd ~/canyon/H-JEPA-VerifierVLA
+cd ~/canyon43079/H-JEPA-VerifierVLA
 git pull --ff-only origin main
 CUDA_VISIBLE_DEVICES=1 bash scripts/run_pi05_checkpoint.sh
 ```
@@ -119,7 +119,7 @@ MUJOCO_GL=egl docker compose -f examples/libero/compose.yml up --build --abort-o
 完成上述检查后，原生模型服务从项目根目录使用统一环境启动：
 
 ```bash
-cd ~/canyon/H-JEPA-VerifierVLA
+cd ~/canyon43079/H-JEPA-VerifierVLA
 CUDA_VISIBLE_DEVICES=1 XLA_PYTHON_CLIENT_PREALLOCATE=false JAX_PLATFORMS=cuda \
   env -u PYTHONPATH .venv/bin/python openpi/scripts/serve_policy.py \
   --port 8000 \
