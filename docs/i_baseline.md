@@ -1,13 +1,13 @@
 # 第一阶段：π₀.₅ baseline 复现计划
 
-更新日期：2026-11-12
+更新日期：2026-11-13
 
 所属阶段：[总实验计划](plan.md)中的 P0 / baseline_setup。  
 模型环境、CPU/GPU 检查、官方 π₀.₅-LIBERO 检查点与 H100 EGL 均已通过。2026-11-12，服务器在 `~/canyon43079/H-JEPA-VerifierVLA` 完成 B2 的 10/10 成功 smoke，并回传 B3 的 500 个有效 episode，459 次成功、41 次超时，成功率 91.8%，Wilson 95% 区间为 89.06%–93.90%。B3 合并首段 290 回合与恢复段 210 回合，基础设施异常为 0。该次运行使用 3 组并行，运行结束后默认配置改为 2 组。原始产物待拉取复核，B4/B5 按下表继续推进。[B2 汇总](results/pi05_libero_smoke_seed7.json)、[B3 汇总](results/pi05_libero_long_seed7.json)、[B3 记录](libero_baseline.md)
 
 资源：八卡 A100/H100 服务器、MuJoCo；Piper 真机用于后续阶段。
 
-**本阶段目标。** 使用 Physical Intelligence 官方 openpi 的 π₀.₅-LIBERO 检查点，建立可重复的单候选推理与仿真闭环 baseline。先跑通 LIBERO-Long，再完成四个标准 suite 的评测，保存后续接入 VeriVLA verifier 所需的基线结果和接口约定。
+**本阶段目标。** 使用 Physical Intelligence 官方 openpi 的 π₀.₅-LIBERO 检查点，建立长程任务的单候选推理与仿真闭环 baseline。B3 的 LIBERO-Long 已完成；2026-11-13 按用户要求，将 B4 改为 LiLo-VLA Ultra-Long，原计划的 Spatial、Object、Goal 三套评测后置。随后在相同 benchmark 和执行协议下评测 π₀.₅＋原版 VeriVLA，为长期评分与层级表示实验建立对照。
 
 本阶段的“复现”指公开微调检查点的推理与评测复现。首先使用已有权重，不安排从头预训练或重新微调。VeriVLA 的训练、双轴触发器、候选评分和 H-JEPA 改进分别在后续阶段实施；本阶段每次决策只采样一个动作块。
 
@@ -24,7 +24,7 @@
 | 检查点性质 | 官方 π₀.₅ @ 30k LIBERO 微调权重；`pi05_base` 是供微调的基础权重，不作为本轮替代品 |
 | 初始推理后端 | JAX，直接使用官方检查点格式 |
 | 运行平台 | Linux GPU 服务器；优先沿用官方测试的 Ubuntu 22.04 |
-| 仿真环境 | LIBERO / MuJoCo；先 `libero_10`，再扩展 Spatial、Object、Goal |
+| 仿真环境 | LIBERO / MuJoCo；B3 为 `libero_10`，B4 为 LiLo-VLA 的 `ultra_long_all`，后者的环境与评测适配待实现 |
 | 候选数 | 每次决策 1 个；没有 verifier 或 trigger |
 | 归一化统计 | 使用当前检查点随附的 `assets/`；不为推理重新计算训练集统计量 |
 
@@ -51,10 +51,43 @@
 | B1 / pi05_inference | 加载官方检查点及 norm stats；先验证直接调用的合成观测推理，再通过官方 WebSocket 客户端检查真实 LIBERO 观测的输入输出 | 推理日志、输入输出样例、首次及后续调用耗时 | 返回有限数值的 `(10,7)` 动作块；真实观测预处理与官方一致 | 合成与真实观测推理均通过；真实动作执行 5 步 |
 | B2 / pi05_libero_smoke | 运行 `libero_10` 每任务 1 个 episode，共 10 个；检查视频、动作执行和终止逻辑 | 十个任务的闭环记录与视频 | 无未解释的加载、通信或渲染错误；成功与失败均有可追溯记录 | 服务器 10/10 成功；原始视频尚未拉取及逐帧复核 |
 | B3 / pi05_long_baseline | 补齐逐 episode 记录和视频唯一命名；按固定初始化运行 Long 每任务 50 次 | 500 个 episode 的记录、逐任务成功率、Long 总结果 | 预定 episode 全部有有效结果；基础设施异常已单列并处理 | 服务器回传完成，459/500 成功、41 次超时，91.8%。原始产物待拉取复核。[记录](libero_baseline.md) |
-| B4 / pi05_full_baseline | 用相同模型和执行协议完成 Spatial、Object、Goal，各 500 次；汇总四套 | 共 2000 个 episode 的结果及官方参考比较 | 四套逐任务计数可核对；总指标可从逐 episode 数据重算 | 待执行 |
-| B5 / pi05_verifier_handoff | 固定 checkpoint、输入输出、执行长度及采样规则；整理后续候选与 verifier 接口缺口 | 基线交接记录 | 后续能够明确只改变候选生成/选择部分，保留同一基础策略及可比执行协议 | 待执行 |
+| B4 / pi05_lilo_ultra_long | 接入 LiLo-VLA Ultra-Long 的全部 9 个配置，先运行 π₀.₅ 单候选 baseline；首轮每配置 10 次，共 90 回合 | 逐配置、逐顺序组及整体的 SR/AP，逐回合技能完成记录与视频 | 9 个配置均有完整记录；SR/AP 可从有序技能完成记录重算；初始化、控制预算和模型协议已固定 | benchmark 已选定；适配、smoke 和正式评测待执行 |
+| B5 / pi05_verifier_handoff | 固定 checkpoint、输入输出、执行长度及采样规则；落实 VeriVLA 权重、候选采样和评分接口，为 Long 与 Ultra-Long 对照交接 | 基线与 verifier 接口交接记录 | 后续能够明确只改变候选生成/选择部分，保留同一基础策略及各 benchmark 的执行协议 | 待执行；资源与接口核查可与 B4 准备同步推进 |
 
 单 GPU 先建立参考结果。八卡优先用于后续独立评测实例，不需要在本阶段启动分布式训练。分片评测前明确每个实例的 GPU、端口、任务/episode 范围和输出目录，并保证计数不重复；官方 runner 当前没有 task/episode 分片参数。
+
+**B4：LiLo-VLA Ultra-Long 评测协议与实施范围。**
+
+本阶段使用 LiLo-VLA 发布的 Ultra-Long benchmark，先评测已有 π₀.₅-LIBERO 检查点。B5 完成接口交接并接通原版 VeriVLA 后，再用相同协议运行 π₀.₅＋VeriVLA 对照。B3 的 459/500 仅属于 LIBERO-Long，两个 benchmark 分别报告。
+
+| 项目 | B4 安排 |
+| --- | --- |
+| 官方来源 | [YY-GX/LiLo-VLA](https://github.com/YY-GX/LiLo-VLA/tree/64aa29d77f5457afb3d1642cfc84534dc1e81fad)，本次核查固定提交 `64aa29d77f5457afb3d1642cfc84534dc1e81fad` |
+| LIBERO 依赖 | 官方固定 `f78abd68ee283de9f9be3c8f7e2a9ad60246e95c`，与本仓库导入版本一致；LiLo 的兼容补丁会改变部分谓词与阈值，需单独记录和验证 |
+| suite | `ultra_long_all`：3 个任务场景 × 3 种技能顺序，共 9 个配置；`ultra_long` 单独只包含 3 个原始顺序配置 |
+| 任务与长度 | Complete Kitchen Organization：9 个技能；Organize Table：16 个技能；Cooking Preparation Setup：10 个技能。每项均含 Original、Reorder 1、Reorder 2 |
+| 首轮规模 | smoke 每配置 1 次，共 9 回合；正式评测沿用官方每配置 10 次，共 90 回合／方法。smoke 与正式结果分开保存 |
+| 初始化 | 官方 `make_env()` 使用未显式设 seed 的 `env.reset()`；固定 `.pruned_init` 扫描属于另一协议，不能直接沿用 B3 的 seed 7＋初始状态 0–49 约定 |
+| 成功率 SR | 对每回合计算 `skills_completed == total_skills`，再求均值；技能完成数遵循指定顺序 |
+| 平均进度 AP | 对每回合计算 `skills_completed / total_skills`，再求均值；同时报告首个未完成技能及失败位置 |
+| 汇总 | 分别报告 9 个配置、Original／Reorder 1／Reorder 2 三组及 Ultra-Long 整体的 SR/AP、样本量与不确定性 |
+| 基础策略 | 首轮沿用已有 `pi05_libero` 权重、归一化统计和生成 10 步／执行 5 步约定；记录 checkpoint 指纹、任务指令及模型采样序列 |
+| 待冻结的适配协议 | 依据固定源码核对完整任务指令、顺序检查和控制步数预算；明确每个配置的预算及等待步计数，不套用 B3 的 520 步上限 |
+
+指标以[官方复现说明](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/docs/REPRODUCTION.md)给出的逐回合技能计数公式为准。该文档指出历史 JSON 的 `metrics.*.success_rate` 可能只是某一时刻的 BDDL 终点判定；读取这一字段或单独调用 `env.check_success()` 都不足以复现其 SR。适配器需要持续记录有序技能完成情况，并用官方 [任务与技能配置](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/configs/tasks_and_skills.json)中的谓词计算 SR/AP。
+
+仅接入 benchmark 的环境、任务和评价逻辑；LiLo-VLA 方法本身的运动规划、物体遮罩与技能恢复模块不属于本次 π₀.₅ baseline。评价使用的技能谓词不自动作为策略输入。现有 π₀.₅ 权重在 Ultra-Long 上的表现属于本项目新测结果，不能把论文中的 LiLo-VLA 或 π₀.₅ 数字写成本项目成绩。
+
+实施顺序：
+
+1. 导入固定版本的 benchmark、任务 assets 和兼容补丁，验证 9 个配置及两路相机；隔离 LiLo 补丁，保留 B3 的原始 LIBERO 环境与成功判定。
+2. 编写 π₀.₅ 评测适配，冻结任务指令、顺序评分、步数预算和记录格式。每个任务配置使用独立进程，避免上游 `pickedup` 高度缓存跨任务复用。
+3. 完成 9 回合 smoke，再运行首轮 90 回合，保存运行配置、逐步技能判定、动作、视频、SR/AP 和模型调用耗时。
+4. 原版 VeriVLA 接通后，在相同配置、初始化协议、控制预算与执行长度下追加对照，并记录候选数、触发比例及额外延迟。若另做保存状态的配对实验，单列协议和结果。
+
+当前仓库的 `run_libero_parallel.py` / `eval_libero.py` 只支持原 LIBERO 四套任务，尚未实现上述适配，不能直接传入 `--suite ultra_long_all` 运行。B4 当前完成的是计划与官方接口核查，未安装 LiLo、未运行 smoke 或正式评测。原版 VeriVLA 对照与 P1 的 1500 条机制诊断分开推进。
+
+来源：[官方 benchmark 用法](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/README.md#just-want-the-benchmark)、[suite 注册及 make_env](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/lilo_vla/benchmark/__init__.py)、[复现协议与指标](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/docs/REPRODUCTION.md)。
 
 **环境与启动方式。** 模型侧采用本项目根目录的统一 uv 环境，供 openpi、H-JEPA 模型核心与 VeriVLA 模型共用。LIBERO 客户端使用独立的 `.venv-libero`，通过模型服务通信。EGL、真实观测、B2 与 B3 已在服务器完成。下方官方 Docker 命令保留为部署参考。[环境说明](environment.md)、[B3 运行与结果记录](libero_baseline.md)
 
@@ -125,7 +158,7 @@ CUDA_VISIBLE_DEVICES=1 bash scripts/serve_pi05_libero.sh
 
 在另一个终端的项目根目录，可使用 `env -u PYTHONPATH .venv/bin/python openpi/examples/simple_client/main.py --env LIBERO --host 127.0.0.1 --port 8000` 检查通信。随机输入推理不代表闭环评测通过。正式评测前重新启动服务，避免调试请求改变正式采样序列。完整环境命令以[官方 LIBERO 安装说明](../openpi/examples/libero/README.md)为准。
 
-**输入、输出与控制约定。** 保持以下已核对的默认行为，先建立可比较的结果。
+**B2/B3 的输入、输出与控制约定。** 以下为已验证的 LIBERO-Long 配置；B4 复用 π₀.₅ 输入输出接口，其任务指令、环境和评分协议按前述 B4 安排单独适配。
 
 | 项目 | 约定 |
 | --- | --- |
@@ -148,7 +181,7 @@ CUDA_VISIBLE_DEVICES=1 bash scripts/serve_pi05_libero.sh
 
 依据：[模型配置](../openpi/src/openpi/training/config.py)、[LIBERO 适配器](../openpi/src/openpi/policies/libero_policy.py)、[评测循环](../openpi/examples/libero/main.py)、[π₀/π₀.₅ 模型](../openpi/src/openpi/models/pi0.py)。
 
-**固定评测协议。**
+**B2/B3 的固定评测协议。** B4 的初始化、技能顺序和控制预算以其独立协议为准。
 
 | 项目 | 首轮参考设置 |
 | --- | --- |
@@ -157,8 +190,8 @@ CUDA_VISIBLE_DEVICES=1 bash scripts/serve_pi05_libero.sh
 | 初始等待 | 10 个仿真步，执行 `[0,0,0,0,0,0,-1]` 等待物体稳定；与策略步数分开记录 |
 | 候选 / 执行 | 单候选；生成 10 步、执行 5 步再规划 |
 | 任务成功 | 沿用官方 runner 的任务终止/成功判定，并在 B2 对照固定版本环境逻辑核对 |
-| 步数预算 | Spatial 220、Object 280、Goal 300、Long 520 个策略控制步；额外 10 步等待另计 |
-| 正式规模 | 每套 10 任务 × 每任务 50 次 = 500 episodes；四套共 2000 |
+| 步数预算 | Long 520 个策略控制步；额外 10 步等待另计 |
+| 正式规模 | B3：Long 10 任务 × 每任务 50 次 = 500 episodes |
 
 环境 seed 不等于模型采样 seed。当前 JAX policy 默认从 key(0) 开始，每次请求继续 split；客户端 `--args.seed` 不控制这个序列，`client.reset()` 也不会重置服务端 RNG。首轮参考固定单客户端调用顺序、服务重启位置与 episode 顺序，并记录服务请求序号。共享服务的多客户端并发会改变采样分配，不能默认与串行逐动作等价。
 
@@ -166,19 +199,16 @@ CUDA_VISIBLE_DEVICES=1 bash scripts/serve_pi05_libero.sh
 
 **参考结果与本项目结果分开记录。**
 
-| Suite | 官方 π₀.₅ @ 30k 参考成功率 | 本项目结果 | 计划正式 episodes |
+| Benchmark | 参考口径 | 本项目结果 | 正式 episodes |
 | --- | --- | --- | --- |
-| `libero_spatial` | 98.8% | 待测 | 500 |
-| `libero_object` | 98.2% | 待测 | 500 |
-| `libero_goal` | 98.0% | 待测 | 500 |
-| `libero_10` / LIBERO-Long | 92.4% | 91.8%（459/500，三组并行，含恢复段） | 500 |
-| 四套平均 | 96.85% | 待测 | 合计 2000 |
+| `libero_10` / LIBERO-Long | 官方 π₀.₅ @ 30k 成功率 92.4% | 91.8%（459/500，三组并行，含恢复段） | 已完成 500 |
+| LiLo-VLA Ultra-Long / `ultra_long_all` | 按官方有序技能计数报告 SR/AP；适配协议待冻结 | 待测 | 首轮计划 9 × 10 = 90／方法 |
 
-来源：[官方 LIBERO 结果表](https://github.com/Physical-Intelligence/openpi/blob/215abfb217dbac7d5f1273282331b9b1866c0479/examples/libero/README.md)。[VeriVLA 表 3](../VeriVLA/paper/VeriVLA.md)列出的 π₀.₅ 四套 baseline 数值相同，平均显示为 96.9%。数值相同不证明其所有运行细节一致，后续接入仍需核对执行长度、初始化和采样协议。
+Long 参考来源：[官方 LIBERO 结果表](https://github.com/Physical-Intelligence/openpi/blob/215abfb217dbac7d5f1273282331b9b1866c0479/examples/libero/README.md)。Ultra-Long 的来源及协议见本页 B4；Spatial、Object、Goal 与四套平均不作为当前阶段交付要求。
 
 本次 Long 比固定官方参考值低 0.6 个百分点。task 8 成功 26/50，24 次超时占全部 41 次超时的 58.5%。运行采用每任务独立模型服务，恢复时重新创建模拟器并按已有请求数推进 RNG。汇总副本来自用户回传，逐回合原始产物待拉取复核。[逐任务结果与恢复段性能](libero_baseline.md)
 
-只跑 Long 时与 92.4% 对照，不能与四套平均比较。正式报告包含各任务成功数/有效回合数、suite 成功率、四套平均和置信区间。官方值用于定位复现差距，不作为必须精确命中的验收阈值；差距明显时按版本、checkpoint、归一化、图像、动作、初始化、步数与采样顺序排查，不靠挑选种子刷到参考值。
+Long 只与 Long 参考比较，Ultra-Long 单独报告 SR/AP，两个 benchmark 不混成一个平均数。正式报告包含各配置成功数/有效回合数、对应指标与置信区间。官方值用于定位复现差距，不作为必须精确命中的验收阈值；差距明显时按版本、checkpoint、归一化、图像、动作、初始化、步数与采样顺序排查，不靠挑选种子刷到参考值。
 
 **B3 的记录功能。** 官方 runner 的同任务同结果视频会覆盖，异常被捕获后仍进入 episode 统计。本项目 [eval_libero.py](../scripts/eval_libero.py)已补入每回合独立目录、完整观测/动作、实际执行前缀、汇总和异常分类，B2 在服务器运行通过。B3 进一步加入每任务 50 个初始状态的调度、逐任务统计、Wilson 95% 区间，以及[服务端检查点指纹和请求编号](../scripts/serve_pi05_libero.py)。模型加载仍使用上游实现，动作生成与 10 步预测 / 5 步执行协议保持不变。
 
@@ -241,6 +271,7 @@ results/pi05_libero/<run_id>/
 - [x] 在服务器完成逐 episode 记录与唯一视频路径；异常分类由 CPU 探针验证，策略执行协议不变。
 - [ ] 拉取原始视频与记录，完成视觉复核和完整产物归档。
 - [x] 完成 Long 的 500 个有效 episode，归档用户回传的逐任务汇总，459/500 成功、41 次超时。
-- [ ] 完成其余三个 suite，得到可重算的 2000-episode baseline 报告。
+- [ ] 接入固定版本 LiLo-VLA Ultra-Long 的环境、9 个配置和有序技能 SR/AP 评分，冻结控制预算与任务指令。
+- [ ] 完成 Ultra-Long 的 9 回合 smoke 和首轮 90 回合 π₀.₅ baseline，保存可重算的技能记录与视频。
 - [ ] 保存单候选、10 步预测 / 5 步执行的固定协议及服务端采样记录。
 - [ ] 整理 VeriVLA 候选采样、评分时域、状态字段和 seed/noise 适配清单，交接到下一阶段。

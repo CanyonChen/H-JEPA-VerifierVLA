@@ -2,11 +2,13 @@
 
 面向长程机器人任务的动作验证研究：以 VeriVLA 的候选动作评分为起点，研究长期成功率监督与 H-JEPA 式多时间尺度预测表示对动作选择的作用。
 
-当前仓库汇集研究计划、上游源码、论文资料和中文讲解页面。第一阶段使用官方 π₀.₅-LIBERO 检查点建立单候选推理与仿真评测 baseline，再逐步开展长期评分与层级表示实验。
+当前仓库汇集研究计划、上游源码、论文资料和中文讲解页面。第一阶段使用官方 π₀.₅-LIBERO 检查点建立 LIBERO-Long 与 LiLo-VLA Ultra-Long 的单候选 baseline，再接入原版 VeriVLA 进行长程对照，随后开展长期评分与层级表示实验。
 
 ## 当前状态
 
-截至 2026-11-12，统一 uv 模型环境、CPU/GPU 兼容性、官方 π₀.₅-LIBERO 检查点推理和 H100 NVIDIA EGL 均已通过服务器检查。LIBERO-Long 正式评测已回传 500 个有效 episode，459 次成功、41 次超时，成功率 **91.8%**，基础设施异常为 0。结果由首段 290 回合与恢复段 210 回合合并。已完成运行使用 3 组并行，运行结束后默认配置改为 2 组。原始视频与逐回合记录待拉取复核，后续阶段包括其余三个 suite 与联合验证模型实现。[评测记录](docs/libero_baseline.md)、[回传汇总](docs/results/pi05_libero_long_seed7.json)
+截至 2026-11-12，统一 uv 模型环境、CPU/GPU 兼容性、官方 π₀.₅-LIBERO 检查点推理和 H100 NVIDIA EGL 均已通过服务器检查。LIBERO-Long 正式评测已回传 500 个有效 episode，459 次成功、41 次超时，成功率 **91.8%**，基础设施异常为 0。结果由首段 290 回合与恢复段 210 回合合并。已完成运行使用 3 组并行，运行结束后默认配置改为 2 组。原始视频与逐回合记录待拉取复核。[评测记录](docs/libero_baseline.md)、[回传汇总](docs/results/pi05_libero_long_seed7.json)
+
+2026-11-13，B4 调整为 **LiLo-VLA Ultra-Long**：3 个场景、每场景 3 种技能顺序，共 9 个配置，首轮计划每配置 10 次，报告成功率 SR 与平均进度 AP。原 Spatial、Object、Goal 三套评测后置。Ultra-Long 适配与评测尚未执行；先建立 π₀.₅ baseline，再以相同协议评测 π₀.₅＋原版 VeriVLA。[B4 计划与官方来源](docs/i_baseline.md)
 
 - `openpi/` 导入自上游提交 `215abfb217dbac7d5f1273282331b9b1866c0479`，作为本仓库的普通源码目录管理。
 - `openpi/third_party/` 包含 ALOHA 与 LIBERO 的完整源码，导入版本分别为 `d1dc83afd89ded4379851257fe5d85632d31d5ec`、`f78abd68ee283de9f9be3c8f7e2a9ad60246e95c`。三者内部的 Git 元数据已移除。
@@ -22,6 +24,7 @@
 | LIBERO 仿真环境、EGL 和真实观测通信 | [LIBERO 安装与检查](docs/libero_setup.md) |
 | 十个任务各一个完整 episode、视频与结果记录 | [LIBERO smoke 检查](docs/libero_smoke.md) |
 | 每任务 50 个初始状态、检查点指纹和逐任务统计 | [LIBERO-Long 500 回合评测](docs/libero_baseline.md) |
+| B4：Ultra-Long 的 9 个配置、SR/AP 与适配计划 | [LiLo-VLA Ultra-Long 评测计划](docs/i_baseline.md) |
 | H-JEPA 中英双语论文 | [H-JEPA.md](H-JEPA/paper-latex/H-JEPA.md) |
 | H-JEPA 代码与运行说明 | [上游代码 README](H-JEPA/repository-main/README.md) |
 | H-JEPA 方法讲解幻灯片 | [deck.html](H-JEPA/repo/deck.html) |
@@ -93,10 +96,11 @@ CUDA_VISIBLE_DEVICES=1 bash scripts/run_pi05_checkpoint.sh
 
 ## 实验路线
 
-1. 跑通 π₀.₅-LIBERO 单候选推理，完成仿真 baseline。
-2. 在相同环境状态与固定候选集合下，比较单个动作块的进度排序与后续任务成功率排序。
-3. 建立单层长期评分基线，再加入 H-JEPA 启发的多时间尺度预测表示。
-4. 在匹配数据、监督和计算预算的条件下完成消融，再推进完整仿真与 Piper 真机验证。
+1. 保留已完成的 π₀.₅-LIBERO-Long 结果，B4 接入 LiLo-VLA Ultra-Long 并建立单候选 baseline。
+2. 接通原版 VeriVLA，在相同 benchmark 和执行协议下比较 π₀.₅ 与 π₀.₅＋VeriVLA 的长程表现。
+3. 在相同环境状态与固定候选集合下，诊断单个动作块的进度排序与后续任务成功率排序。
+4. 建立单层长期评分基线，再加入 H-JEPA 启发的多时间尺度预测表示。
+5. 在匹配数据、监督和计算预算的条件下完成消融，再推进完整仿真与 Piper 真机验证。
 
 完整协议及阶段通过条件以 [docs/plan.md](docs/plan.md) 为准。
 
