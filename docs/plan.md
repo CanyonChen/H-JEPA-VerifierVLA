@@ -4,7 +4,7 @@
 
 研究方案已确认，P0 已完成 π₀.₅-LIBERO-Long 的单候选闭环与 500 回合评测，服务器回传 459 次成功、41 次超时，成功率 91.8%。P0 的同状态分支恢复验证、VeriVLA 资源核实与 P1–P5 留待后续推进。[baseline 记录](i_baseline.md)
 
-当前评测主线为 LIBERO-Long 与 **LiLo-VLA Ultra-Long**。按用户于 2026-11-13 的要求，B4 从补齐 Spatial、Object、Goal 改为 Ultra-Long 的 9 个配置，先运行 π₀.₅ baseline，再以相同协议评测 π₀.₅＋原版 VeriVLA。Ultra-Long 适配器及独立依赖锁已完成本地验证，服务器预检、9 回合 smoke 和首轮 90 回合待运行；版本、项目适配协议及运行命令见 [B4 运行说明](lilo_baseline.md)。
+当前评测主线为 LIBERO-Long 与 **LiLo-VLA Ultra-Long**。按用户于 2026-11-13 的要求，B4 从补齐 Spatial、Object、Goal 改为 Ultra-Long 的 9 个配置，先运行 π₀.₅ baseline，再以相同协议评测 π₀.₅＋原版 VeriVLA。B4 复用 B3 的模型与仿真环境，本轮 GPU 0、1 各运行一组。适配器与双卡调度已完成本地验证，服务器预检、9 回合 smoke 和首轮 90 回合待运行；版本、项目适配协议及运行命令见 [B4 运行说明](lilo_baseline.md)。
 
 可用资源：八卡 A100/H100 服务器、MuJoCo、松灵 Piper 等机器人。  
 实施顺序：先在仿真中验证多个任务阶段之间的取舍，再进行真机验证。

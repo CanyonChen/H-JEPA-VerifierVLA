@@ -16,8 +16,8 @@ import numpy as np
 
 from scripts.check_libero_env import PROJECT_ROOT, make_policy_observation
 from scripts.eval_libero import episode_progress, validate_server_provenance, write_json
-from scripts.lilo_protocol import (LILO_COMMIT, PROTOCOL, STEPS_PER_SKILL, SUITE, OrderedProgress,
-                                   SkillPredicates, initialize_benchmark, summarize_lilo, task_definitions)
+from scripts.lilo_protocol import (LILO_COMMIT, PROTOCOL, STEPS_PER_SKILL, SUITE, WAIT_STEPS, OrderedProgress,
+                                   SkillPredicates, initialize_benchmark, settle_environment, summarize_lilo, task_definitions)
 
 
 def update_result(result, tracker, task):
@@ -111,9 +111,11 @@ def main(argv=None):
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", force=True,
                         handlers=[logging.StreamHandler(), logging.FileHandler(run_dir / "run.log", encoding="utf-8")])
     config = dict(protocol=PROTOCOL, lilo_commit=LILO_COMMIT, suite=SUITE, task=task,
-                  environment_seed=None, initialization="bare unseeded env.reset; new simulator per episode",
+                  simulation_environment=".venv-libero", simulation_python=sys.executable,
+                  egl_device_id=os.environ["MUJOCO_EGL_DEVICE_ID"],
+                  environment_seed=None, initialization="unseeded env.reset followed by ten B3 settling steps; new simulator per episode",
                   prompt=task["prompt"], max_policy_steps=max_steps, steps_per_skill=args.steps_per_skill,
-                  wait_steps=0, action_shape=[10, 7], replan_steps=5,
+                  wait_steps=WAIT_STEPS, action_shape=[10, 7], replan_steps=5,
                   budget_scope="project end-to-end control budget; no LiLo planner or retries",
                   trial_start=args.trial_start, trials=args.num_trials_per_task,
                   restored_request_count=args.request_offset)
@@ -129,7 +131,7 @@ def main(argv=None):
         from openpi_client.websocket_client_policy import WebsocketClientPolicy
         config["repo_commit"] = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=PROJECT_ROOT, text=True).strip()
         config["versions"] = {name: importlib.metadata.version(name) for name in
-                              ("torch", "numpy", "scipy", "mujoco", "robosuite", "bddl", "robomimic", "openpi-client")}
+                              ("torch", "numpy", "scipy", "mujoco", "robosuite", "bddl", "openpi-client")}
         client = WebsocketClientPolicy(args.host, args.port)
         config["server_metadata"] = client.get_server_metadata()
         provenance = validate_server_provenance(config["server_metadata"], offset)
@@ -149,6 +151,9 @@ def main(argv=None):
                     result["stage"] = "environment_creation"
                     env, obs = suite.make_env(args.task_id)
                     stack.callback(env.close)
+                    np.save(directory / "reset_sim_state.npy", env.get_sim_state())
+                    result["stage"] = "settling"
+                    obs = settle_environment(env, obs, result)
                     np.save(directory / "initial_sim_state.npy", env.get_sim_state())
                     predicates = SkillPredicates(env, task)
                     writer = stack.enter_context(imageio.get_writer(directory / "video.mp4", fps=10))

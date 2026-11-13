@@ -4,6 +4,7 @@ import unittest
 
 from scripts.eval_libero import episode_progress
 from scripts.eval_lilo import rollout
+from scripts.lilo_protocol import WAIT_STEPS, settle_environment
 from test_libero_episodes import FakeEnvironment, FakePolicy
 
 
@@ -20,6 +21,15 @@ class TimedPredicates:
 
 
 class LiloEpisodeTest(unittest.TestCase):
+    def test_settling_steps_are_separate_from_policy_steps_and_requests(self):
+        env, result = FakeEnvironment(), episode_progress()
+        obs = settle_environment(env, env.observation(), result)
+        self.assertEqual(env.wait_count, WAIT_STEPS)
+        self.assertEqual(result["wait_steps"], 10)
+        self.assertEqual(result["policy_steps"], 0)
+        self.assertEqual(result["policy_requests"], 0)
+        self.assertEqual(obs["agentview_image"].shape, (224, 224, 3))
+
     def run_episode(self, thresholds, limit=20, policy=None, error_at=None, service_id=None):
         env = FakeEnvironment(success_at=1, error_at=error_at)
         policy = policy or FakePolicy()

@@ -7,13 +7,13 @@ import json
 import sys
 
 from scripts.check_libero_env import PROJECT_ROOT, configure_libero_paths
-from scripts.eval_libero import summarize
+from scripts.eval_libero import DUMMY_ACTION, WAIT_STEPS, summarize
 
 LILO_COMMIT = "64aa29d77f5457afb3d1642cfc84534dc1e81fad"
 LILO_ROOT = PROJECT_ROOT / "third_party/lilo_vla"
 SUITE = "ultra_long_all"
 TASK_IDS = (8, 9, 10, 19, 20, 21, 22, 23, 24)
-PROTOCOL = "pi05_lilo_ordered_v1"
+PROTOCOL = "pi05_lilo_ordered_v2"  # B3 dependencies and ten settling steps before skill baselines.
 STEPS_PER_SKILL = 200
 
 
@@ -35,7 +35,7 @@ def task_definitions():
 
 
 def initialize_benchmark():
-    configure_libero_paths(PROJECT_ROOT / ".venv-lilo/libero-config")
+    configure_libero_paths()
     sys.path.insert(0, str(LILO_ROOT))
     import lilo_vla.benchmark  # noqa: F401; process-local compatibility patches
     from lilo_vla.libero_compat import verify
@@ -54,6 +54,15 @@ def resolve_object(states, name):
     if name.endswith("_main") and name[:-5] in states:
         return states[name[:-5]]
     raise KeyError("Skill predicate object missing from the scene: " + name)
+
+
+def settle_environment(env, obs, result=None):
+    """Let reset contacts settle before establishing PickedUp height baselines."""
+    for _ in range(WAIT_STEPS):
+        obs, _, _, _ = env.step(DUMMY_ACTION)
+        if result is not None:
+            result["wait_steps"] += 1
+    return obs
 
 
 class SkillPredicates:

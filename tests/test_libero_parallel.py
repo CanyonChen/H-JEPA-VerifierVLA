@@ -1,6 +1,7 @@
 """CPU checks for fixed task concurrency, recovery and parallel result aggregation."""
 
 import contextlib
+import csv
 import io
 import json
 import logging
@@ -30,6 +31,8 @@ class SimulatedProcesses:
         self.processes = []
         self.starts = []
         self.fail_task = fail_task
+        self.durations = {}
+        self.peak_models_by_gpu = {}
 
     def popen(self, command, **kwargs):
         model = command[command.index("-m") + 1] == "scripts.serve_pi05_libero"
@@ -67,7 +70,7 @@ class SimulatedProcesses:
                 return row
 
             def poll(self):
-                if self.returncode is None and not model and owner.tick - self.started >= 6:
+                if self.returncode is None and not model and owner.tick - self.started >= owner.durations.get(task_id, 6):
                     # The final rows arrive after the controller's live progress read.
                     with self.path.open("a", encoding="utf-8") as stream:
                         for init in range(self.first_init + 1, self.end):
@@ -84,6 +87,11 @@ class SimulatedProcesses:
 
         process = Process()
         self.processes.append(process)
+        if model:
+            gpu = kwargs["env"]["CUDA_VISIBLE_DEVICES"]
+            active = sum(p.model and p.returncode is None and p.environment["CUDA_VISIBLE_DEVICES"] == gpu
+                         for p in self.processes)
+            self.peak_models_by_gpu[gpu] = max(self.peak_models_by_gpu.get(gpu, 0), active)
         self.starts.append((self.tick, model, task_id))
         return process
 
@@ -91,7 +99,8 @@ class SimulatedProcesses:
         return self.tick - task.server.started >= 2
 
     def gpu_status(self, gpu):
-        active = sum(process.model and process.returncode is None for process in self.processes)
+        active = sum(process.model and process.returncode is None
+                     and process.environment["CUDA_VISIBLE_DEVICES"] == str(gpu) for process in self.processes)
         return {"used_mib": 1024 + active * 10240, "total_mib": 81559, "utilization_percent": 80 if active else 0}
 
     def sleep(self, seconds):
@@ -241,7 +250,7 @@ class LiberoParallelTest(unittest.TestCase):
         self.assertEqual([model.started for model in models[:2]], [0, 0])
         self.assertEqual(models[2].started, 8)
 
-    def test_ultra_long_smoke_and_formal_use_nine_configs_and_new_environment(self):
+    def test_ultra_long_smoke_and_formal_reuse_b3_environment(self):
         for trials in (1, 10):
             processes = SimulatedProcesses()
             extra = ["--suite", "ultra_long_all"] + (["--trials-per-task", "1"] if trials == 1 else [])
@@ -258,10 +267,53 @@ class LiberoParallelTest(unittest.TestCase):
             clients = [p for p in processes.processes if not p.model]
             self.assertEqual(len(clients), 9)
             for client in clients:
-                self.assertIn(".venv-lilo", client.command[0])
+                self.assertIn(".venv-libero", client.command[0])
                 self.assertIn("scripts.eval_lilo", client.command)
                 self.assertNotIn("--seed", client.command)
                 self.assertNotIn("--init-state-id", client.command)
+
+    def test_two_gpus_keep_one_pair_per_device_and_refill_the_first_free_gpu(self):
+        for trials in (1, 10):
+            processes = SimulatedProcesses()
+            processes.durations = {0: 12, 1: 4}
+            args = ["--suite", "ultra_long_all", "--gpus", "0", "1",
+                    "--max-workers", "4", "--trials-per-task", str(trials)]
+            with mock.patch("scripts.check_lilo_prompts.check_prompts", return_value=[]), \
+                    self.run_controller(processes, args) as (result, directory):
+                summary = json.loads((directory / "summary.json").read_text())
+                config = json.loads((directory / "run_config.json").read_text())
+                self.assertEqual(result, 0, summary)
+                self.assertEqual(summary["valid_episodes"], 9 * trials)
+                self.assertEqual(summary["gpus"], [0, 1])
+                self.assertEqual(summary["selected_workers"], 2)
+                self.assertEqual(summary["sampled_peak_vram_gib_by_gpu"], {"0": 11, "1": 11})
+                self.assertEqual(summary["sampled_peak_vram_gib"], 22)
+                self.assertIsNone(config["gpu"])
+                self.assertEqual(config["task_devices"]["2"], {"gpu": 1, "egl_device": 1})
+                with (directory / "gpu.csv").open() as stream:
+                    metrics = list(csv.DictReader(stream))
+                self.assertEqual({r["gpu"] for r in metrics}, {"0", "1"})
+                self.assertTrue(all(int(r["active_tasks"]) <= 1 for r in metrics))
+            models = {p.task_id: p for p in processes.processes if p.model}
+            self.assertEqual(processes.peak_models_by_gpu, {"0": 1, "1": 1})
+            self.assertEqual([models[i].started for i in (0, 1)], [0, 0])
+            self.assertEqual(models[0].environment["CUDA_VISIBLE_DEVICES"], "0")
+            self.assertEqual(models[1].environment["CUDA_VISIBLE_DEVICES"], "1")
+            self.assertEqual(models[2].environment["CUDA_VISIBLE_DEVICES"], "1")
+            clients = [p for p in processes.processes if not p.model]
+            self.assertEqual(len(clients), 9)
+            for client in clients:
+                self.assertIn(".venv-libero", client.command[0])
+                self.assertEqual(client.environment["MUJOCO_EGL_DEVICE_ID"],
+                                 models[client.task_id].environment["CUDA_VISIBLE_DEVICES"])
+                self.assertNotIn("CUDA_VISIBLE_DEVICES", client.environment)
+
+    def test_ambiguous_or_invalid_gpu_lists_are_rejected_before_launch(self):
+        for args in (["--gpus", "0", "0"], ["--gpus", "-1", "1"],
+                     ["--gpus", "0", "1", "--egl-device", "1"], ["--gpu", "0", "--gpus", "0", "1"]):
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as raised:
+                parallel.main(args)
+            self.assertEqual(raised.exception.code, 2)
 
     def test_launch_failure_allows_existing_task_to_complete(self):
         processes = SimulatedProcesses()

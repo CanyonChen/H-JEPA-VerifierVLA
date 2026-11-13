@@ -24,7 +24,7 @@
 | 检查点性质 | 官方 π₀.₅ @ 30k LIBERO 微调权重；`pi05_base` 是供微调的基础权重，不作为本轮替代品 |
 | 初始推理后端 | JAX，直接使用官方检查点格式 |
 | 运行平台 | Linux GPU 服务器；优先沿用官方测试的 Ubuntu 22.04 |
-| 仿真环境 | LIBERO / MuJoCo；B3 为 `libero_10`，B4 为 LiLo-VLA 的 `ultra_long_all`，使用独立 `.venv-lilo` 和进程内补丁 |
+| 仿真环境 | LIBERO / MuJoCo；B3 为 `libero_10`，B4 为 LiLo-VLA 的 `ultra_long_all`；两者复用 `.venv-libero`，LiLo 补丁只在 B4 进程内导入 |
 | 候选数 | 每次决策 1 个；没有 verifier 或 trigger |
 | 归一化统计 | 使用当前检查点随附的 `assets/`；不为推理重新计算训练集统计量 |
 
@@ -54,7 +54,7 @@
 | B4 / pi05_lilo_ultra_long | 接入 LiLo-VLA Ultra-Long 的全部 9 个配置，先运行 π₀.₅ 单候选 baseline；首轮每配置 10 次，共 90 回合 | 逐配置、逐顺序组及整体的 SR/AP，逐回合技能完成记录与视频 | 9 个配置均有完整记录；SR/AP 可从有序技能完成记录重算；初始化、控制预算和模型协议已固定 | 适配与本地验证完成；服务器环境、smoke 和正式评测待运行。[指令](lilo_baseline.md) |
 | B5 / pi05_verifier_handoff | 固定 checkpoint、输入输出、执行长度及采样规则；落实 VeriVLA 权重、候选采样和评分接口，为 Long 与 Ultra-Long 对照交接 | 基线与 verifier 接口交接记录 | 后续能够明确只改变候选生成/选择部分，保留同一基础策略及各 benchmark 的执行协议 | 待执行；资源与接口核查可与 B4 准备同步推进 |
 
-单 GPU 先建立参考结果。八卡优先用于后续独立评测实例，不需要在本阶段启动分布式训练。分片评测前明确每个实例的 GPU、端口、任务/episode 范围和输出目录，并保证计数不重复；官方 runner 当前没有 task/episode 分片参数。
+B3 已在单 GPU 完成参考结果。本轮 B4 按用户要求使用 GPU 0、1 各一组模型＋仿真进程，共用任务队列；空闲卡领取下一配置，总计仍为 9 回合 smoke 或 90 回合正式评测。每项任务的模型卡、EGL 卡、端口、episode 范围和产物均有记录，不涉及分布式训练。
 
 **B4：LiLo-VLA Ultra-Long 评测协议与实施范围。**
 
@@ -67,12 +67,12 @@
 | suite | `ultra_long_all`：3 个任务场景 × 3 种技能顺序，共 9 个配置；`ultra_long` 单独只包含 3 个原始顺序配置 |
 | 任务与长度 | Complete Kitchen Organization：9 个技能；Organize Table：16 个技能；Cooking Preparation Setup：10 个技能。每项均含 Original、Reorder 1、Reorder 2 |
 | 首轮规模 | smoke 每配置 1 次，共 9 回合；正式评测沿用官方每配置 10 次，共 90 回合／方法。smoke 与正式结果分开保存 |
-| 初始化 | 官方 `make_env()` 使用未显式设 seed 的 `env.reset()`；固定 `.pruned_init` 扫描属于另一协议，不能直接沿用 B3 的 seed 7＋初始状态 0–49 约定 |
+| 初始化 | 官方 `make_env()` 使用未显式设 seed 的 `env.reset()`；本项目随后执行 10 步静置再建立技能基准。固定 `.pruned_init` 扫描属于另一协议，不能直接沿用 B3 的 seed 7＋初始状态 0–49 约定 |
 | 成功率 SR | 对每回合计算 `skills_completed == total_skills`，再求均值；技能完成数遵循指定顺序 |
 | 平均进度 AP | 对每回合计算 `skills_completed / total_skills`，再求均值；同时报告首个未完成技能及失败位置 |
 | 汇总 | 分别报告 9 个配置、Original／Reorder 1／Reorder 2 三组及 Ultra-Long 整体的 SR/AP、样本量与不确定性 |
 | 基础策略 | 首轮沿用已有 `pi05_libero` 权重、归一化统计和生成 10 步／执行 5 步约定；记录 checkpoint 指纹、任务指令及模型采样序列 |
-| 项目适配协议 | `pi05_lilo_ordered_v1`：完整技能指令固定输入；逐步有序前缀监测；总预算 200×技能数＝1800/3200/2000，等待步数为 0。与论文原始方法的差异见[运行说明](lilo_baseline.md) |
+| 项目适配协议 | `pi05_lilo_ordered_v2`：复用 B3 仿真依赖及 10 步静置；完整技能指令固定输入；逐步有序前缀监测；策略总预算 200×技能数＝1800/3200/2000，静置单列。与论文原始方法的差异见[运行说明](lilo_baseline.md) |
 
 指标以[官方复现说明](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/docs/REPRODUCTION.md)给出的逐回合技能计数公式为准。该文档指出历史 JSON 的 `metrics.*.success_rate` 可能只是某一时刻的 BDDL 终点判定；读取这一字段或单独调用 `env.check_success()` 都不足以复现其 SR。适配器需要持续记录有序技能完成情况，并用官方 [任务与技能配置](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/configs/tasks_and_skills.json)中的谓词计算 SR/AP。
 
@@ -85,7 +85,7 @@
 3. 完成 9 回合 smoke，再运行首轮 90 回合，保存运行配置、逐步技能判定、动作、视频、SR/AP 和模型调用耗时。
 4. 原版 VeriVLA 接通后，在相同配置、初始化协议、控制预算与执行长度下追加对照，并记录候选数、触发比例及额外延迟。若另做保存状态的配对实验，单列协议和结果。
 
-2026-11-13 已实现 `eval_lilo.py`、独立 `.venv-lilo` 环境锁、九配置渲染预检和 `run_lilo_baseline.sh`。共用调度器 `run_libero_parallel.py` 通过 `--suite ultra_long_all` 调用新客户端；原 `eval_libero.py` 保持 B2/B3 协议。上游导入文件哈希、完整指令长度、三场景本地渲染/九配置谓词绑定，以及 CPU 计分、动作执行、并行与恢复测试均已核验。服务器安装、H100 EGL、smoke 和正式评测仍待用户运行；当前没有 B4 性能结果。具体验证边界及逐步命令见[运行说明](lilo_baseline.md)。原版 VeriVLA 对照与 P1 的 1500 条机制诊断分开推进。
+2026-11-13 已实现 `eval_lilo.py`、九配置渲染预检和 `run_lilo_baseline.sh`。按用户更正，B4 直接复用 B3 `.venv-libero`，删除另建环境的依赖配置；预检入口为 `run_lilo_check.sh`，仅检查现有环境。共用调度器支持 `--suite ultra_long_all --gpus 0 1`，每卡一组并按空闲情况继续领取任务；原 `eval_libero.py` 保持 B2/B3 协议。上游导入文件哈希、完整指令长度、三场景本地渲染/九配置谓词绑定，以及 CPU 计分、动作执行、双卡调度与恢复测试均已核验。服务器双卡 EGL、smoke 和正式评测仍待用户运行；当前没有 B4 性能结果。具体验证边界及逐步命令见[运行说明](lilo_baseline.md)。原版 VeriVLA 对照与 P1 的 1500 条机制诊断分开推进。
 
 来源：[官方 benchmark 用法](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/README.md#just-want-the-benchmark)、[suite 注册及 make_env](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/lilo_vla/benchmark/__init__.py)、[复现协议与指标](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/docs/REPRODUCTION.md)。
 
@@ -202,7 +202,7 @@ CUDA_VISIBLE_DEVICES=1 bash scripts/serve_pi05_libero.sh
 | Benchmark | 参考口径 | 本项目结果 | 正式 episodes |
 | --- | --- | --- | --- |
 | `libero_10` / LIBERO-Long | 官方 π₀.₅ @ 30k 成功率 92.4% | 91.8%（459/500，三组并行，含恢复段） | 已完成 500 |
-| LiLo-VLA Ultra-Long / `ultra_long_all` | 上游场景与 SR/AP 公式，项目适配协议 `pi05_lilo_ordered_v1` | 待测，适配器已本地验证 | 首轮计划 9 × 10 = 90／方法 |
+| LiLo-VLA Ultra-Long / `ultra_long_all` | 上游场景与 SR/AP 公式，项目适配协议 `pi05_lilo_ordered_v2` | 待测，适配器已本地验证 | 首轮计划 9 × 10 = 90／方法 |
 
 Long 参考来源：[官方 LIBERO 结果表](https://github.com/Physical-Intelligence/openpi/blob/215abfb217dbac7d5f1273282331b9b1866c0479/examples/libero/README.md)。Ultra-Long 的来源及协议见本页 B4；Spatial、Object、Goal 与四套平均不作为当前阶段交付要求。
 
@@ -271,7 +271,7 @@ results/pi05_libero/<run_id>/
 - [x] 在服务器完成逐 episode 记录与唯一视频路径；异常分类由 CPU 探针验证，策略执行协议不变。
 - [ ] 拉取原始视频与记录，完成视觉复核和完整产物归档。
 - [x] 完成 Long 的 500 个有效 episode，归档用户回传的逐任务汇总，459/500 成功、41 次超时。
-- [x] 接入固定版本 LiLo-VLA Ultra-Long 的环境、9 个配置和有序技能 SR/AP 评分，冻结项目控制预算与任务指令；本地验证完成，服务器安装与 EGL 待验证。
+- [x] 接入固定版本 LiLo-VLA Ultra-Long 的环境、9 个配置和有序技能 SR/AP 评分，冻结项目控制预算与任务指令；复用 B3 环境，本地验证完成，服务器双卡 EGL 待验证。
 - [ ] 完成 Ultra-Long 的 9 回合 smoke 和首轮 90 回合 π₀.₅ baseline，保存可重算的技能记录与视频。
 - [ ] 保存单候选、10 步预测 / 5 步执行的固定协议及服务端采样记录。
 - [ ] 整理 VeriVLA 候选采样、评分时域、状态字段和 seed/noise 适配清单，交接到下一阶段。
