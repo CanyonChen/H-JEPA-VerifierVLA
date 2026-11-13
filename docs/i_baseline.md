@@ -54,7 +54,7 @@
 | B2 / pi05_libero_smoke | 运行 `libero_10` 每任务 1 个 episode，共 10 个；检查视频、动作执行和终止逻辑 | 十个任务的闭环记录与视频 | 无未解释的加载、通信或渲染错误；成功与失败均有可追溯记录 | 服务器 10/10 成功；原始视频尚未拉取及逐帧复核 |
 | B3 / pi05_long_baseline | 补齐逐 episode 记录和视频唯一命名；按固定初始化运行 Long 每任务 50 次 | 500 个 episode 的记录、逐任务成功率、Long 总结果 | 预定 episode 全部有有效结果；基础设施异常已单列并处理 | 服务器回传完成，459/500 成功、41 次超时，91.8%。原始产物待拉取复核。[记录](libero_baseline.md) |
 | B4 / pi05_lilo_ultra_long | 接入 LiLo-VLA Ultra-Long 的全部 9 个配置，先运行 π₀.₅ 单候选 baseline；首轮每配置 10 次，共 90 回合 | 逐配置、逐顺序组及整体的 SR/AP，逐回合技能完成记录与视频 | 9 个配置均有完整记录；SR/AP 可从有序技能完成记录重算；初始化、控制预算和模型协议已固定 | 服务器回传完成：90 个有效回合，0 成功、76 乱序失败、14 超时；SR 0%、AP 1.6049%，最终合并集无基础设施异常。原始产物待下载复核。[结果](lilo_baseline.md) |
-| B5 / pi05_verifier_handoff | 固定 checkpoint、输入输出、执行长度及采样规则；落实 VeriVLA 权重、候选采样和评分接口，为 Long 与 Ultra-Long 对照交接 | 基线与 verifier 接口交接记录 | 后续能够明确只改变候选生成/选择部分，保留同一基础策略及各 benchmark 的执行协议 | 当前下一步：复核权重、配置和评分接口；原版 VeriVLA 对照尚未执行 |
+| B5 / pi05_verifier_handoff | 冻结 π₀.₅，补齐 verifier 数据划分、标签、预训练迁移、训练和候选评分接口；记录论文方法的项目复现差异 | 数据检查与独立划分、训练配置/权重及评测接口 | 预训练实际加载与梯度通过；验证不泄漏测试数据；在固定基础策略和 benchmark 协议下进行对照 | 官方缺少 trained verifier 权重；本地只读数据检查工具已验证，待服务器回传；尚未训练或运行 verifier 对照。[步骤](verifier_training.md) |
 
 B3 已在单 GPU 完成参考结果。后续 B4 按用户最新要求仅使用 GPU 1，最多两组模型＋仿真进程并行，共用任务队列；一组完成后领取下一配置，总计仍为 9 回合 smoke 或 90 回合正式评测。参数为 `--gpu 1 --egl-device 1 --max-workers 2`。每项任务的模型卡、EGL 卡、端口、episode 范围和产物均有记录，不涉及分布式训练。
 
@@ -97,7 +97,9 @@ B3 已在单 GPU 完成参考结果。后续 B4 按用户最新要求仅使用 G
 
 **当前交接。** B4 的单候选正式结果已齐全：[完整汇总](results/pi05_lilo_ultra_long_formal_v2.json)为 90 个有效回合、SR 0%、AP 1.6049%，76 次乱序失败、14 次超时，Wilson 95% 成功率区间为 0%–4.0936%。保留首段 32 个有效回合，恢复段新增 58 个（50 乱序失败、8 超时），最终合并集无基础设施异常。首段 task 2 / trial 2 的心跳异常及传输层修复单独归档，旧产物目录需保留。汇总计数与 AP 已本地核对；原始逐回合文件及视频尚未下载。恢复段耗时 1308.48 秒、159.57 个新增有效回合/小时，这些数字仅覆盖新增 58 个回合。
 
-**B5 接续范围。** 冻结 LIBERO-Long 的 459/500、91.8% 与 Ultra-Long 的 0/90、AP 1.6049% 两套基线，接下来核实原版 VeriVLA 可用权重和训练配置，梳理候选生成、触发及评分接口，随后运行同 benchmark、同协议的 π₀.₅＋VeriVLA 对照。继续复用现有环境和 checkpoint，GPU 1 最多两组；自行补齐的环节需记录与官方实现的差异。当前尚无 verifier 对照结果，本轮低分只属于单候选 π₀.₅；P1 分支机制诊断保持为后续独立阶段。
+**B5 接续范围。** 2026-11-13 用户补充官方权重尚未发布的核查，已与固定版本公开 TODO、Releases、论文和本地代码对照。后续冻结 π₀.₅，只训练 verifier，明确是基于官方结构/论文方法的项目复现。当前运行 `scripts.audit_verifier_data` 检查现有 Long 500 和 Ultra-Long 90 回合：全部决策 NPZ、实际执行前缀、视频帧数与终止帧、旧目录引用及去重，使用 `.venv-libero`、CPU、只读；本地六项测试通过，服务器结果待回传。[完整命令与边界](verifier_training.md)。
+
+两套已完成数字保留为历史基线。若其回合用于训练/调参，后续必须另设独立测试集合或从这批中先固定未训练的测试分组，并在同一测试集合比较 base/verifier。现有状态为 8D，需适配官方 7/14/16D 投影；5 步实际执行前缀可以拟按 M=5 构造监督，生成后五步不能借用重规划后的轨迹标签。Robometer 标签、V-JEPA 2-AC 实际迁移、短前缀 mask、8D 适配与训练均尚未执行。Ultra-Long 的 90 回合缺少中后段覆盖，且任务查询不同于 Long，应独立设计训练数据；P1 分支机制诊断保持为后续阶段。
 
 来源：[官方 benchmark 用法](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/README.md#just-want-the-benchmark)、[suite 注册及 make_env](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/lilo_vla/benchmark/__init__.py)、[复现协议与指标](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/docs/REPRODUCTION.md)。
 
