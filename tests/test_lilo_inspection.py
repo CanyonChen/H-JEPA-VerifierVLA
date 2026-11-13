@@ -5,10 +5,29 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from scripts.inspect_lilo_run import compact_report, inspect_run
+from scripts.inspect_lilo_run import check_summary_counts, compact_report, inspect_run
 
 
 class LiloInspectionTest(unittest.TestCase):
+    def test_summary_check_detects_swapped_task_counts_and_missing_task_entries(self):
+        rows = [dict(task_id=task, policy_steps=steps) for task, steps in ((0, 60), (1, 3200), (8, 102))]
+        summary = dict(recorded_episodes=3, policy_steps=3362,
+                       per_task=[dict(row, recorded_episodes=1) for row in rows])
+        errors = []
+        check_summary_counts(dict(task_ids=[0, 1, 8]), summary, rows, errors)
+        self.assertEqual(errors, [])
+        summary["per_task"][0]["policy_steps"] = 102
+        check_summary_counts(dict(task_ids=[0, 1, 8]), summary, rows, errors)
+        self.assertIn("Task 0 policy_steps: summary=102, episode rows=60", errors)
+        errors = []
+        summary["per_task"] = summary["per_task"][:1]
+        check_summary_counts(dict(task_ids=[0, 1, 8]), summary, rows, errors)
+        self.assertIn("per_task IDs do not match the configured task IDs", errors)
+        errors = []
+        summary.pop("per_task")
+        check_summary_counts(dict(task_ids=[0, 1, 8]), summary, rows, errors)
+        self.assertIn("Saved summary has no per_task entries", errors)
+
     def fixture(self, root, outcome="out_of_order"):
         directory = root / "tasks/task00/client/saved_run/episodes/trial000"
         directory.mkdir(parents=True)

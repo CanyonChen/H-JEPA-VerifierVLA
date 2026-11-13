@@ -1,0 +1,229 @@
+{
+  "provenance": {
+    "source": "User-pasted aggregate and compact inspection; raw server files and videos have not been downloaded.",
+    "scope": "Three new diagnostic episodes, separate from the earlier nine-episode smoke and planned formal evaluation.",
+    "known_inconsistencies": [
+      "The pasted per_task list contains only task 0 despite three recorded tasks.",
+      "That per_task entry labels 102 policy steps as task 0; the inspection reports task 0 at 60 and task 8 at 102. The pasted aggregate is preserved without correction."
+    ],
+    "next_check": "Read summary.json and episodes.jsonl on the server to check task IDs, episode counts, policy steps and request counts."
+  },
+  "summary_as_pasted": {
+    "status": "PASS",
+    "scope": "Ultra-Long ordered skills; unseeded resets; project end-to-end control budget",
+    "planned_episodes": 3,
+    "recorded_episodes": 3,
+    "unattempted_episodes": 0,
+    "valid_episodes": 3,
+    "successes": 0,
+    "timeouts": 1,
+    "infrastructure_errors": 0,
+    "interrupted_episodes": 0,
+    "success_rate": 0,
+    "success_rate_wilson95": [
+      5.551115123125783e-17,
+      0.5614970317550454
+    ],
+    "policy_steps": 3362,
+    "policy_requests": 673,
+    "run_error": null,
+    "out_of_order_failures": 2,
+    "average_progress": 0,
+    "completed_skills": 0,
+    "suite": "ultra_long_all",
+    "protocol": "pi05_lilo_ordered_v2",
+    "lilo_commit": "64aa29d77f5457afb3d1642cfc84534dc1e81fad",
+    "per_task": [
+      {
+        "task_id": 0,
+        "name": "Complete Kitchen Organization (Original)",
+        "status": "PASS",
+        "scope": "Ultra-Long ordered skills; unseeded resets; project end-to-end control budget",
+        "planned_episodes": 1,
+        "recorded_episodes": 1,
+        "unattempted_episodes": 0,
+        "valid_episodes": 1,
+        "successes": 0,
+        "timeouts": 0,
+        "infrastructure_errors": 0,
+        "interrupted_episodes": 0,
+        "success_rate": 0,
+        "success_rate_wilson95": [
+          0,
+          0.7934506856227626
+        ],
+        "policy_steps": 102,
+        "policy_requests": 21,
+        "run_error": null,
+        "out_of_order_failures": 1,
+        "average_progress": 0,
+        "completed_skills": 0
+      }
+    ],
+    "output_dir": "/home/jovyan/canyon43079/H-JEPA-VerifierVLA/outputs/pi05_lilo_live_20261113T105309Z/pi05_ultra_long_all_gpu1_unseeded_20261113T105415_099820Z",
+    "gpu": 1,
+    "egl_device": 1,
+    "gpus": [
+      1
+    ],
+    "sampled_peak_vram_gib_by_gpu": {
+      "1": 41.5556640625
+    },
+    "vram_scope": "Total across selected GPUs; per-device peaks reported separately.",
+    "sampled_peak_vram_gib": 41.5556640625,
+    "selected_workers": 2,
+    "wall_seconds": 439.5447175130248,
+    "retained_episodes": 0,
+    "new_valid_episodes": 3,
+    "valid_episodes_per_hour": 24.57087884278798
+  },
+  "inspection_as_pasted": {
+    "inspection_status": "COMPLETE",
+    "run_dir": "/home/jovyan/canyon43079/H-JEPA-VerifierVLA/outputs/pi05_lilo_live_20261113T105309Z/pi05_ultra_long_all_gpu1_unseeded_20261113T105415_099820Z",
+    "parallel_config": {
+      "gpu": 1,
+      "gpus": null,
+      "egl_device": 1,
+      "max_workers": 2,
+      "selected_workers": 2
+    },
+    "reported_summary": {
+      "status": "PASS",
+      "protocol": "pi05_lilo_ordered_v2",
+      "valid_episodes": 3,
+      "successes": 0,
+      "timeouts": 1,
+      "out_of_order_failures": 2,
+      "infrastructure_errors": 0,
+      "success_rate": 0,
+      "average_progress": 0
+    },
+    "inspection_errors": [],
+    "episodes": [
+      {
+        "task_id": 0,
+        "trial_id": 0,
+        "outcome": "out_of_order",
+        "policy_steps": 60,
+        "skills_completed": 0,
+        "inspection_errors": [],
+        "expected": "pick black bowl 1",
+        "triggered": "pick black bowl 3",
+        "live_physics": {
+          "schema": "lilo_physics_v1",
+          "source": "live_rollout",
+          "policy_step": 60,
+          "objects": {
+            "akita_black_bowl_1_main": {
+              "height_delta_m": 2.786076397365278e-7,
+              "gripper_distance_m": 0.25999127957740004,
+              "fingerpad_contacts": {
+                "left": false,
+                "right": false
+              },
+              "both_fingerpads_contact": false,
+              "both_fingerpads_contact_steps": 0,
+              "last_both_fingerpads_contact_step": null,
+              "any_gripper_contact": false,
+              "any_gripper_contact_steps": 0,
+              "last_any_gripper_contact_step": null
+            },
+            "akita_black_bowl_3_main": {
+              "height_delta_m": 0.03261110151185154,
+              "gripper_distance_m": 0.046506586389623884,
+              "fingerpad_contacts": {
+                "left": false,
+                "right": false
+              },
+              "both_fingerpads_contact": false,
+              "both_fingerpads_contact_steps": 0,
+              "last_both_fingerpads_contact_step": null,
+              "any_gripper_contact": true,
+              "any_gripper_contact_steps": 13,
+              "last_any_gripper_contact_step": 60
+            }
+          }
+        }
+      },
+      {
+        "task_id": 1,
+        "trial_id": 0,
+        "outcome": "timeout",
+        "policy_steps": 3200,
+        "skills_completed": 0,
+        "inspection_errors": [],
+        "expected": "pick tomato sauce 1",
+        "triggered": null,
+        "live_physics": {
+          "schema": "lilo_physics_v1",
+          "source": "live_rollout",
+          "policy_step": 3200,
+          "objects": {
+            "tomato_sauce_1_main": {
+              "height_delta_m": 0,
+              "gripper_distance_m": 0.5527558143189742,
+              "fingerpad_contacts": {
+                "left": false,
+                "right": false
+              },
+              "both_fingerpads_contact": false,
+              "both_fingerpads_contact_steps": 0,
+              "last_both_fingerpads_contact_step": null,
+              "any_gripper_contact": false,
+              "any_gripper_contact_steps": 0,
+              "last_any_gripper_contact_step": null
+            }
+          }
+        }
+      },
+      {
+        "task_id": 8,
+        "trial_id": 0,
+        "outcome": "out_of_order",
+        "policy_steps": 102,
+        "skills_completed": 0,
+        "inspection_errors": [],
+        "expected": "pick black bowl 1",
+        "triggered": "turn on the stove 1",
+        "live_physics": {
+          "schema": "lilo_physics_v1",
+          "source": "live_rollout",
+          "policy_step": 102,
+          "objects": {
+            "akita_black_bowl_1_main": {
+              "height_delta_m": 2.786076397365278e-7,
+              "gripper_distance_m": 0.32191295534785397,
+              "fingerpad_contacts": {
+                "left": false,
+                "right": false
+              },
+              "both_fingerpads_contact": false,
+              "both_fingerpads_contact_steps": 0,
+              "last_both_fingerpads_contact_step": null,
+              "any_gripper_contact": false,
+              "any_gripper_contact_steps": 0,
+              "last_any_gripper_contact_step": null
+            },
+            "flat_stove_1_main": {
+              "height_delta_m": null,
+              "gripper_distance_m": 0.03182082410800925,
+              "fingerpad_contacts": {
+                "left": true,
+                "right": true
+              },
+              "both_fingerpads_contact": true,
+              "both_fingerpads_contact_steps": 21,
+              "last_both_fingerpads_contact_step": 102,
+              "any_gripper_contact": true,
+              "any_gripper_contact_steps": 26,
+              "last_any_gripper_contact_step": 102,
+              "joint_positions": [
+                0.514105595424609
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}

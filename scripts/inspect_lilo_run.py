@@ -99,14 +99,39 @@ def inspect_episode(run_dir, row):
     return report
 
 
+def check_summary_counts(config, summary, rows, errors):
+    """Cross-check saved grouping against episode rows, without changing scores."""
+    def compare(label, reported, selected):
+        for field in ("recorded_episodes", "policy_steps", "policy_requests"):
+            if field not in reported:
+                continue
+            actual = len(selected) if field == "recorded_episodes" else sum(row[field] for row in selected)
+            if reported[field] != actual:
+                errors.append("{} {}: summary={}, episode rows={}".format(label, field, reported[field], actual))
+
+    compare("Overall", summary, rows)
+    if "per_task" in summary:
+        task_ids = config.get("task_ids", sorted({row["task_id"] for row in rows}))
+        reported_ids = [item["task_id"] for item in summary["per_task"]]
+        if sorted(reported_ids) != sorted(task_ids):
+            errors.append("per_task IDs do not match the configured task IDs")
+        for item in summary["per_task"]:
+            compare("Task {}".format(item["task_id"]), item,
+                    [row for row in rows if row["task_id"] == item["task_id"]])
+    elif "task_ids" in config:
+        errors.append("Saved summary has no per_task entries")
+
+
 def inspect_run(run_dir):
     run_dir = Path(run_dir).resolve()
     errors = []
     config = read_json(run_dir / "run_config.json", errors)
     summary = read_json(run_dir / "summary.json", errors)
-    episodes = [inspect_episode(run_dir, row) for row in read_rows(run_dir / "episodes.jsonl", errors)]
-    if len(episodes) != summary.get("recorded_episodes"):
-        errors.append("Episode row count does not match the saved summary")
+    rows = list(read_rows(run_dir / "episodes.jsonl", errors))
+    episodes = [inspect_episode(run_dir, row) for row in rows]
+    check_summary_counts(config, summary, rows, errors)
+    if "recorded_episodes" not in summary:
+        errors.append("Saved summary has no recorded_episodes count")
     return dict(
         inspection_status="INCOMPLETE" if errors or any(e["inspection_errors"] for e in episodes) else "COMPLETE",
         note="Read-only trace inspection, not a validation or change of scoring. Skill indices are zero-based. "

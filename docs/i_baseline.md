@@ -51,7 +51,7 @@
 | B1 / pi05_inference | 加载官方检查点及 norm stats；先验证直接调用的合成观测推理，再通过官方 WebSocket 客户端检查真实 LIBERO 观测的输入输出 | 推理日志、输入输出样例、首次及后续调用耗时 | 返回有限数值的 `(10,7)` 动作块；真实观测预处理与官方一致 | 合成与真实观测推理均通过；真实动作执行 5 步 |
 | B2 / pi05_libero_smoke | 运行 `libero_10` 每任务 1 个 episode，共 10 个；检查视频、动作执行和终止逻辑 | 十个任务的闭环记录与视频 | 无未解释的加载、通信或渲染错误；成功与失败均有可追溯记录 | 服务器 10/10 成功；原始视频尚未拉取及逐帧复核 |
 | B3 / pi05_long_baseline | 补齐逐 episode 记录和视频唯一命名；按固定初始化运行 Long 每任务 50 次 | 500 个 episode 的记录、逐任务成功率、Long 总结果 | 预定 episode 全部有有效结果；基础设施异常已单列并处理 | 服务器回传完成，459/500 成功、41 次超时，91.8%。原始产物待拉取复核。[记录](libero_baseline.md) |
-| B4 / pi05_lilo_ultra_long | 接入 LiLo-VLA Ultra-Long 的全部 9 个配置，先运行 π₀.₅ 单候选 baseline；首轮每配置 10 次，共 90 回合 | 逐配置、逐顺序组及整体的 SR/AP，逐回合技能完成记录与视频 | 9 个配置均有完整记录；SR/AP 可从有序技能完成记录重算；初始化、控制预算和模型协议已固定 | v2 smoke 已回传：0/9、AP 1.11%，8 次乱序终止、1 次超时；评分核查与正式评测待执行。[指令](lilo_baseline.md) |
+| B4 / pi05_lilo_ultra_long | 接入 LiLo-VLA Ultra-Long 的全部 9 个配置，先运行 π₀.₅ 单候选 baseline；首轮每配置 10 次，共 90 回合 | 逐配置、逐顺序组及整体的 SR/AP，逐回合技能完成记录与视频 | 9 个配置均有完整记录；SR/AP 可从有序技能完成记录重算；初始化、控制预算和模型协议已固定 | v2 smoke 0/9、AP 1.11%；独立现场诊断 0/3、AP 0，行为核查收束，保留 v2。核对回传计数后启动正式 90 回合。[指令](lilo_baseline.md) |
 | B5 / pi05_verifier_handoff | 固定 checkpoint、输入输出、执行长度及采样规则；落实 VeriVLA 权重、候选采样和评分接口，为 Long 与 Ultra-Long 对照交接 | 基线与 verifier 接口交接记录 | 后续能够明确只改变候选生成/选择部分，保留同一基础策略及各 benchmark 的执行协议 | 待执行；资源与接口核查可与 B4 准备同步推进 |
 
 B3 已在单 GPU 完成参考结果。后续 B4 按用户最新要求仅使用 GPU 1，最多两组模型＋仿真进程并行，共用任务队列；一组完成后领取下一配置，总计仍为 9 回合 smoke 或 90 回合正式评测。参数为 `--gpu 1 --egl-device 1 --max-workers 2`。每项任务的模型卡、EGL 卡、端口、episode 范围和产物均有记录，不涉及分布式训练。
@@ -89,7 +89,9 @@ B3 已在单 GPU 完成参考结果。后续 B4 按用户最新要求仅使用 G
 
 最新[服务器回传](results/pi05_lilo_smoke_v2_replay.json)补齐九回合摘要：三个厨房配置都触发黑碗 3，三个桌面整理配置都触发奶油奶酪 2；烹饪原顺序完成开炉灶 1 后超时，两个重排均提前触发开炉灶 1。`pickedup` 仅检测 3 cm 抬升，尚不能直接认定抓错对象。task 0、3 的服务器回放在第 5 步即观测不符，没有到达终止现场，`CHECK_REQUIRED` 不改变原始 smoke 指标。停止通过该回放推断原回合接触情况，保留[早期片段](results/pi05_lilo_smoke_v2_trace_excerpt.json)与回放记录。
 
-下一步使用 `--task-ids 0 1 8 --trials-per-task 1 --record-physics` 做三回合现场诊断，继续复用 B3 环境，GPU 1 最多两组并行；运行时直接保存物体高度和夹爪接触，再用 `inspect_lilo_run.py --compact` 回传。开关默认关闭，不改 v2 评分，新回合不并入旧 smoke 或正式评测。本地 25 个 B4 测试、17 个调度测试（跳过 1 个 Windows 不支持项）及三类场景各五步取证探针已验证；服务器现场诊断待运行。
+三回合[现场诊断已回传](results/pi05_lilo_live_diagnostic_v2.json)：0/3、AP 0、2 次乱序终止、1 次超时，无基础设施异常；GPU 1 实际两组并行，约 7 分 20 秒，整卡显存采样峰值约 41.56 GiB。task 0 在第 60 步接触黑碗 3 并使其升高 3.261 cm，未接触要求的黑碗 1；双指垫接触计数为 0，不能表述为已证实的稳定夹持。task 1 在 3200 步中未记录到目标番茄酱接触并超时；task 8 在第 102 步接触并开启炉灶，要求的黑碗未动。当前证据支持保留 v2，接受低分，结束本轮行为诊断；三回合不合并到旧 smoke 或正式评测。
+
+回传的 `per_task` 存在 task 0 的 102 步与逐回合 60 步不一致，且仅粘贴一个任务条目。归档保留该差异，不补造缺项；本地汇总代码未复现任务错位。下一条命令先用 `inspect_lilo_run.py --compact` 核对服务器原文件中的任务集合、回合数、步数和请求数，通过后由 `&&` 直接启动正式 90 回合，不追加诊断回合。正式仍复用 B3 环境、GPU 1 最多两组，全部九配置每配置十回合；模型、指令、预算和 v2 评分保持固定，原版 VeriVLA 尚未接入。
 
 来源：[官方 benchmark 用法](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/README.md#just-want-the-benchmark)、[suite 注册及 make_env](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/lilo_vla/benchmark/__init__.py)、[复现协议与指标](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/docs/REPRODUCTION.md)。
 
@@ -277,6 +279,7 @@ results/pi05_libero/<run_id>/
 - [x] 完成 Long 的 500 个有效 episode，归档用户回传的逐任务汇总，459/500 成功、41 次超时。
 - [x] 接入固定版本 LiLo-VLA Ultra-Long 的环境、9 个配置和有序技能 SR/AP 评分，记录 v2 项目控制预算与任务指令；复用 B3 环境，本地验证完成。
 - [x] 回传 Ultra-Long 的 9 回合 v2 smoke：0/9、AP 1.11%，GPU 1 单 worker，原始产物待核查。
-- [ ] 核查 8 次乱序终止后确定评分协议，完成首轮 90 回合 π₀.₅ baseline；仅 GPU 1、最多两组并行，保存可重算的技能记录与视频。
+- [x] 完成三个新回合的现场取证，结束本轮行为诊断，固定 v2 评分。
+- [ ] 核对回传按任务计数后，完成首轮 90 回合 π₀.₅ baseline；仅 GPU 1、最多两组并行，保存可重算的技能记录与视频。
 - [ ] 保存单候选、10 步预测 / 5 步执行的固定协议及服务端采样记录。
 - [ ] 整理 VeriVLA 候选采样、评分时域、状态字段和 seed/noise 适配清单，交接到下一阶段。
