@@ -21,6 +21,9 @@ import uuid
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CHECKPOINT = "gs://openpi-assets/checkpoints/pi05_libero"
 CONFIG = "pi05_libero"
+# Long local rollouts may pause heartbeat handling. Keep pings, without a
+# heartbeat deadline that can abort an otherwise valid evaluation episode.
+WEBSOCKET_PING_TIMEOUT = None
 
 
 def checkpoint_manifest(directory):
@@ -104,6 +107,7 @@ def main(argv=None):
         "policy_config": CONFIG, "backend": "jax", "initial_model_seed": 0,
         "rng_protocol": "Upstream default key(0), split once per inference; no reset between episodes.",
         "checkpoint_source": args.checkpoint, "port": args.port, "python": platform.python_version(),
+        "websocket_ping_timeout_seconds": WEBSOCKET_PING_TIMEOUT,
         "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
         "output_dir": str(output_dir), "startup_status": "LOADING",
     }
@@ -166,9 +170,10 @@ def main(argv=None):
         metadata = dict(policy.metadata)
         metadata["evaluation"] = provenance
         server = WebsocketPolicyServer(RecordedPolicy(policy, provenance), host="0.0.0.0", port=args.port,
-                                       metadata=metadata)
+                                       metadata=metadata, ping_timeout=WEBSOCKET_PING_TIMEOUT)
         logging.info("Serving %s, service_id=%s, checkpoint_sha256=%s", CONFIG, service_id,
                      provenance["checkpoint_manifest"]["sha256"])
+        logging.info("WebSocket keepalive enabled; ping_timeout=%s", WEBSOCKET_PING_TIMEOUT)
         server.serve_forever()
     except KeyboardInterrupt:
         logging.info("Service stopped after %d inference attempts", provenance["request_count"])

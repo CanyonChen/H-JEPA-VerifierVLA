@@ -1,0 +1,98 @@
+{
+  "provenance": {
+    "source": "User-pasted scripts.inspect_lilo_run --errors-only output on 2026-11-13",
+    "raw_server_artifacts_downloaded": false,
+    "scope": "Reported inspection summary and failed episode preserved. Log excerpts contain selected verbatim lines from the supplied tails; they are not the complete logs.",
+    "inspection_meaning": "COMPLETE means the saved records were read successfully, not that the formal evaluation completed."
+  },
+  "reported_inspection": {
+    "inspection_status": "COMPLETE",
+    "run_dir": "/home/jovyan/canyon43079/H-JEPA-VerifierVLA/outputs/pi05_lilo_formal/pi05_ultra_long_all_gpu1_unseeded_20261113T112336_510911Z",
+    "parallel_config": {
+      "gpu": 1,
+      "gpus": null,
+      "egl_device": 1,
+      "max_workers": 2,
+      "selected_workers": 2
+    },
+    "reported_summary": {
+      "status": "INCOMPLETE",
+      "protocol": "pi05_lilo_ordered_v2",
+      "planned_episodes": 90,
+      "recorded_episodes": 33,
+      "unattempted_episodes": 57,
+      "valid_episodes": 32,
+      "successes": 0,
+      "timeouts": 6,
+      "out_of_order_failures": 26,
+      "infrastructure_errors": 1,
+      "interrupted_episodes": 0,
+      "success_rate": null,
+      "average_progress": null,
+      "run_error": "Task 2 incomplete; see /home/jovyan/canyon43079/H-JEPA-VerifierVLA/outputs/pi05_lilo_formal/pi05_ultra_long_all_gpu1_unseeded_20261113T112336_510911Z/tasks/task02/client.log"
+    },
+    "inspection_errors": [],
+    "episodes": [
+      {
+        "task_id": 2,
+        "trial_id": 2,
+        "outcome": "infrastructure_error",
+        "policy_steps": 1750,
+        "skills_completed": 1,
+        "stage": "policy_inference",
+        "error": "ConnectionClosedError: received 1011 (internal error) keepalive ping timeout; then sent 1011 (internal error) keepalive ping timeout",
+        "inspection_errors": [],
+        "expected": "pick moka pot 1",
+        "triggered": null,
+        "live_physics": null
+      }
+    ]
+  },
+  "reported_log_excerpts": {
+    "client_log": {
+      "path": "/home/jovyan/canyon43079/H-JEPA-VerifierVLA/outputs/pi05_lilo_formal/pi05_ultra_long_all_gpu1_unseeded_20261113T112336_510911Z/tasks/task02/client.log",
+      "lines": [
+        "2026-11-13 19:33:53,696 INFO ultra_long_task02_trial000: timeout, 1/10 skills, 2000 policy steps",
+        "2026-11-13 19:36:46,172 INFO ultra_long_task02_trial001: timeout, 1/10 skills, 2000 policy steps",
+        "2026-11-13 19:41:29,883 ERROR Episode failed: ultra_long_task02_trial002",
+        "  File \"/home/jovyan/canyon43079/H-JEPA-VerifierVLA/scripts/eval_lilo.py\", line 49, in rollout",
+        "    response = client.infer(policy_obs)",
+        "  File \"/home/jovyan/canyon43079/H-JEPA-VerifierVLA/openpi/packages/openpi-client/src/openpi_client/websocket_client_policy.py\", line 49, in infer",
+        "    self._ws.send(data)",
+        "websockets.exceptions.ConnectionClosedError: received 1011 (internal error) keepalive ping timeout; then sent 1011 (internal error) keepalive ping timeout",
+        "2026-11-13 19:41:29,965 INFO ultra_long_task02_trial002: infrastructure_error, 1/10 skills, 1750 policy steps"
+      ]
+    },
+    "server_log": {
+      "path": "/home/jovyan/canyon43079/H-JEPA-VerifierVLA/outputs/pi05_lilo_formal/pi05_ultra_long_all_gpu1_unseeded_20261113T112336_510911Z/tasks/task02/server.log",
+      "lines": [
+        "2026-11-13 19:30:47,439 INFO Serving pi05_libero, service_id=00d906ea-da8f-4190-8326-70f168fd0d39, checkpoint_sha256=9cd1b00d402cc0447454dad6054dcc6f019b53e498469f209d2b749d4487e1d5",
+        "2026-11-13 19:30:59,828 INFO Connection from ('127.0.0.1', 50898) opened",
+        "2026-11-13 19:41:29,490 INFO Connection from ('127.0.0.1', 50898) closed",
+        "2026-11-13 19:41:31,757 INFO server closing",
+        "2026-11-13 19:41:31,757 INFO server closed",
+        "2026-11-13 19:41:31,759 INFO Service stopped after 1150 inference attempts"
+      ]
+    }
+  },
+  "diagnosis": {
+    "confirmed_failure": "The third episode of task 2 was interrupted by a server-originated WebSocket keepalive timeout, observed on the client's next inference send.",
+    "latency_source": "Not established by the supplied logs.",
+    "local_code_finding": "The project service inherited websockets' default 20-second heartbeat timeout. The patch preserves pings and explicitly sets ping_timeout=None for this project's pi05 service, recording the setting in service metadata.",
+    "policy_and_scoring": "No change to model inference, action execution, scoring, or control-step budgets; pi05_lilo_ordered_v2 retained."
+  },
+  "recovery_plan": {
+    "status": "Prepared locally; server recovery has not yet been reported",
+    "retain_valid_episodes": 32,
+    "remaining_valid_episodes": 58,
+    "retry": {"task_id": 2, "trial_id": 2, "restart_entire_episode": true},
+    "task_2_retained_trials": [0, 1],
+    "task_2_request_offset": 800,
+    "request_offset_basis": "Two valid 2000-step episodes, five executed steps per request. Existing resume code verifies the actual saved request IDs and checkpoint before running.",
+    "initialization": "Fresh unseeded simulator reset; not restoration at policy step 1750.",
+    "gpu": 1,
+    "egl_device": 1,
+    "max_workers": 2,
+    "environments": [".venv", ".venv-libero"]
+  }
+}

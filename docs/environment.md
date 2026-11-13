@@ -24,6 +24,8 @@ openpi 固定的 LeRobot 要求 `gymnasium==0.29.1`，H-JEPA 原版完整环境�
 
 根项目以 editable 方式安装 `openpi`、`openpi-client`、`h_jepa` 和 `verifier`。H-JEPA 中三处依赖工作目录的导入改为包导入，并在其上游包配置中补入 `h_jepa` 模块。网络实现与损失函数保持原有计算。VeriVLA 源码与许可证保留在 `VeriVLA/repository/`，来源见该目录的 `UPSTREAM.md`。
 
+2026-11-13 的 B4 正式首段出现 `1011 keepalive ping timeout`。本地为 openpi 的 `WebsocketPolicyServer` 增加 `ping_timeout` 参数，保留其 20 秒通用默认值；项目 `serve_pi05_libero.py` 显式传入 `None`，保留 Ping 并取消心跳等待上限，设置记入服务元数据。此为上游基准之上的传输层修改，不涉及模型权重、推理、评分或依赖升级；B3/B4 继续使用现有 `.venv` 与 `.venv-libero`。具体回传和恢复命令见 [B4 运行说明](lilo_baseline.md)。
+
 VeriVLA 此版本公开模型结构，尚未提供完整训练代码、LIBERO / RoboTwin 集成。环境配置不代表这些功能已实现。LIBERO 客户端使用独立的 `.venv-libero`，通过模型服务通信；其旧版 Python / PyTorch 依赖不安装到主模型环境中。安装、CPU 版 PyTorch 的用途与 EGL 检查见 [LIBERO 安装与检查](libero_setup.md)。
 
 ## 服务器安装

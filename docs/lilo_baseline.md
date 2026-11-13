@@ -1,6 +1,6 @@
 # B4：π₀.₅ / LiLo-VLA Ultra-Long
 
-更新日期：2026-11-13。正式 90 回合已启动，首段因基础设施异常提前结束：回传片段合计 32 个有效回合、1 个异常回合、57 个未尝试回合，正式 SR/AP 尚不可用。当前先读取异常正文，处理后保留 32 个有效回合并续跑剩余 58 个，不从零重跑。此前行为诊断已收束，继续固定 v2、**GPU 1 最多两组并行**，复用 B3 环境；当前仍是单候选 π₀.₅，原版 VeriVLA 对照尚未开始。
+更新日期：2026-11-13。正式首段取得 32 个有效回合，task 2 的第 3 回合在第 1750 步因 WebSocket 心跳超时断开；另有 57 个未尝试回合，正式 SR/AP 尚不可用。已完成传输层修复及本地通信回归，当前从首段目录恢复，保留 32 个有效回合并续跑剩余 58 个。服务器恢复结果尚未回传。继续固定 v2、**GPU 1 最多两组并行**，复用 B3 环境；当前仍是单候选 π₀.₅，原版 VeriVLA 对照尚未开始。
 
 ## 固定协议
 
@@ -16,6 +16,7 @@
 | 初始化 | 每回合新建模拟器，调用官方 `make_env()` 的未设 seed reset；不加载 `.pruned_init`。随后执行 B3 的 10 步静置，再建立技能高度基准；静置步数独立记录，不占策略预算 |
 | 预算 | **项目端到端预算**＝200 × 技能数，分别为 1800 / 3200 / 2000 个控制步；不包含 LiLo 运动规划器或恢复模块 |
 | 并行 | 本轮 `--gpu 1 --egl-device 1 --max-workers 2`：GPU 1 上最多两组模型服务＋仿真客户端，共用任务队列，沿用自然 CPU/线程调度 |
+| 服务通信 | 正式恢复段保留 WebSocket Ping，设置 `ping_timeout=None`；实际设置随 `service.json` 和客户端保存的服务元数据记录。仅调整传输层，不改变推理、执行或评分 |
 | 规模 | smoke：9 配置 × 1＝9 回合；正式：9 × 10＝90 回合，分别保存 |
 
 这里复用上游 benchmark 的场景、任务顺序、谓词及 SR/AP 公式。**B3 仿真依赖与静置、完整指令构造、端到端总步数预算和下面的时序监测是本项目适配协议**，不是对论文端到端基线逐位一致的复现。上游声明的环境包含 Python ≥3.10、MuJoCo 3.3.0；本轮按用户要求复用 B3 的 Python 3.8 / MuJoCo 3.2.3，实际版本随结果记录。本地零动作探针发现 Organize Table 的物体会在 reset 后弹起，直接建立 `pickedup` 高度基准会将其误记为提前拾取，因此采用 B3 的 10 步静置后再评分。上游 `vla_horizon=200` 是 LiLo 单技能交互上限；不能把本项目的 200×技能数称为上游原始端到端预算。论文数字只作有协议差异的参考。
@@ -120,9 +121,9 @@ env -u PYTHONPATH .venv-libero/bin/python -m scripts.inspect_lilo_run \
 
 **回传一致性。** 早期诊断粘贴的 `per_task` 只含 task 0，且写了 102 步、21 次请求；逐回合诊断则给 task 0 为 60 步、task 8 为 102 步。逐回合步数 `60 + 3200 + 102 = 3362` 与整体一致。本地汇总代码按该三组步数生成正确的任务映射，未复现错位；未下载服务器原件，因此归档保留原粘贴值。读档工具已增加整体和按任务的回合数、控制步数、策略请求数及配置任务集合核对，不改变指标或旧产物。此前提供的首段命令在核对通过后启动正式测评；当前已收到正式首段结果。
 
-### 正式首段异常：当前下一步
+### 正式首段异常与修复
 
-首段目录为 `outputs/pi05_lilo_formal/pi05_ultra_long_all_gpu1_unseeded_20261113T112336_510911Z`。[片段归档](results/pi05_lilo_formal_segment1_partial.json)只保存用户给出的尾部；以下整体计数由三个 `per_order` 组相加，不补造未提供的顶层 `run_error` 或任务明细。
+首段目录为 `outputs/pi05_lilo_formal/pi05_ultra_long_all_gpu1_unseeded_20261113T112336_510911Z`。[首次片段归档](results/pi05_lilo_formal_segment1_partial.json)保存用户给出的汇总尾部；随后[异常读档归档](results/pi05_lilo_formal_segment1_error.json)补齐顶层摘要和异常回合，并确认以下整体计数。后者中的日志只保留明确标注的选段，未下载服务器原件。
 
 | 项目 | 首段记录 |
 | --- | --- |
@@ -132,9 +133,15 @@ env -u PYTHONPATH .venv-libero/bin/python -m scripts.inspect_lilo_run \
 | 剩余有效回合目标 | 58＝重跑 1 个异常回合＋57 个未尝试回合 |
 | 资源与时间 | GPU 1，两组并行；约 22 分 6 秒，整卡显存采样峰值约 42.08 GiB |
 
-正式评测未完成，SR/AP 保持 `null`；不能把尚未运行的任务记为失败，也不能剔除异常后发布正式成功率。调度器遇到异常后停止派发新任务，并允许已在运行的任务结束，因此后面的配置会保持未尝试。当前缺少具体异常正文，尚不能判断或修复原因。
+正式评测未完成，SR/AP 保持 `null`。调度器遇到异常后停止派发新任务，并允许已在运行的任务结束，因此后面的配置保持未尝试。
 
-先运行以下只读命令，提取顶层 `run_error`、异常回合的 task/trial、`stage`、`error`，以及客户端最后 70 行、模型服务最后 40 行日志。普通超时和乱序失败不会刷屏；该命令不启动模型、不启动仿真、不改原始记录：
+异常已定位到 `task_id=2, trial_id=2`：`policy_inference` 阶段，客户端下一次 `send` 收到服务端的 `1011 keepalive ping timeout`。前两个回合均达到 2000 步后正常记为任务超时，属于应保留的有效结果。服务日志记录处理过 1150 次推理后关闭；本次未提供证据确定心跳延迟的具体来源。
+
+模型服务原先继承 websockets 的 20 秒心跳等待上限。当前为上游服务类增加可配置的 `ping_timeout`，通用默认值仍为 20 秒；项目 `serve_pi05_libero.py` 显式设置 `None`，继续发送 Ping，但取消 Pong 的短超时断连。该用法用于容忍延迟峰值，见 [websockets 15.0.1 官方说明](https://websockets.readthedocs.io/en/15.0.1/topics/keepalive.html)。设置写入服务元数据 `websocket_ping_timeout_seconds`；没有增加请求重发或改变模型采样、动作和 v2 评分，已有进程退出检查继续生效。
+
+本地使用 websockets 15.0.1 的真实连接与延迟心跳确认测试：有限超时会产生相同的 `1011`；项目设置下延迟后的第二次推理正常返回，请求编号为 1、2，动作值一致。这验证了传输设置，不等于已完成服务器恢复评测。现在直接执行下方恢复命令。
+
+以下是已经执行并回传的只读排错命令，保留供追溯。它提取异常回合及客户端最后 70 行、服务端最后 40 行日志：
 
 ```bash
 cd ~/canyon43079/H-JEPA-VerifierVLA
@@ -144,7 +151,7 @@ env -u PYTHONPATH .venv-libero/bin/python -m scripts.inspect_lilo_run \
   --errors-only
 ```
 
-回传这段 JSON 后针对异常处理。现有恢复入口会保留成功、超时、乱序失败的连续有效前缀，核对 checkpoint 指纹和请求编号，再从缺失回合续跑；不会挑掉低分回合。修复前不从零启动另一轮 90 回合，也不先假定依赖版本或显存是原因。
+此次 `inspection_status: COMPLETE` 表示读取完成；正式评测仍是 `INCOMPLETE`。现有恢复入口保留成功、超时、乱序失败的连续有效前缀，核对 checkpoint 指纹和请求编号，再从缺失回合续跑。
 
 ## 服务器执行
 
@@ -187,13 +194,16 @@ bash scripts/run_lilo_baseline.sh \
   --output-root outputs/pi05_lilo_formal
 ```
 
-以上是已执行首段的命令，当前不要再次从零启动。正式规模覆盖全部九个配置、每配置十回合，固定 `pi05_lilo_ordered_v2`；不启用额外物理记录，也不合并此前 smoke/诊断样本。当前应先提取基础设施异常，处理后使用下面的恢复入口。
+以上是已执行首段的命令，当前不要再次从零启动。正式规模覆盖全部九个配置、每配置十回合，固定 `pi05_lilo_ordered_v2`；不启用额外物理记录，也不合并此前 smoke/诊断样本。当前使用下面的恢复入口。
 
-### 4. 异常处理后的恢复
+### 4. 心跳修复后的恢复（当前执行）
 
-异常原因尚待定位，当前先执行上面的只读命令。处理后恢复本次正式首段，保持原来的每配置十次、全部九配置和步数预算：
+拉取修复后恢复本次正式首段，保持原来的每配置十次、全部九配置和步数预算。复用现有环境及缓存权重：
 
 ```bash
+cd ~/canyon43079/H-JEPA-VerifierVLA
+git pull --ff-only origin main
+
 bash scripts/run_lilo_baseline.sh \
   --gpu 1 --egl-device 1 --max-workers 2 --trials-per-task 10 --steps-per-skill 200 \
   --output-root outputs/pi05_lilo_formal \
@@ -202,6 +212,8 @@ bash scripts/run_lilo_baseline.sh \
 
 恢复保留成功、超时、乱序失败的连续有效回合前缀，只补缺失回合；校验 checkpoint 指纹，按每任务已完成模型请求数推进采样 RNG。环境仍使用新的未设 seed reset；`trial_id` 是回合序号，不是固定初始状态编号，也不保证恢复中断回合的同一物理状态。恢复产物写入新目录并引用保留记录。
 
+启动日志应显示 `Retained 32 valid episodes`、`GPUs [1], fixed concurrency 2`。task 2 保留 trial 0、1 的两次超时，按 800 次已完成请求恢复模型 RNG，再从 trial 2 重新开始完整回合；不会从第 1750 步接着执行。完成后预期 `valid_episodes=90`、`retained_episodes=32`、`new_valid_episodes=58`。请保留旧目录，恢复汇总和被保留回合的产物仍引用它。
+
 ## 产物与验证边界
 
 默认 smoke 位于 `outputs/pi05_lilo_parallel/pi05_ultra_long_all_gpu1_unseeded_*/`；当前正式命令将独立产物写入 `outputs/pi05_lilo_formal/`。各运行包含 `run_config.json`、`summary.json`、合并的 `episodes.jsonl`、GPU 日志，以及各 task 的服务和客户端日志。`task_devices` 记录任务实际分配的模型卡和 EGL 卡，`gpu.csv` 按卡记录；`sampled_peak_vram_gib_by_gpu` 是各卡峰值，本轮仅 GPU 1，`sampled_peak_vram_gib` 对应该卡的总占用采样峰值。每回合保存初始模拟器状态、双相机视频、各次策略请求的完整观测、动作块及已执行步数、逐步技能真值与事件、最终 `result.json`。checkpoint 内容指纹、服务 ID 和请求编号沿用 B3 实现。
@@ -209,6 +221,8 @@ bash scripts/run_lilo_baseline.sh \
 本地已验证：上游 8 个导入文件的 Git blob 哈希全部匹配固定提交；9 配置的数量、技能映射和完整指令；三种场景实际创建、64×64 离屏渲染及九配置全部谓词绑定；27 个 B4 CPU 协议/rollout/预检/诊断/回放测试（含按任务汇总错位、异常正文与日志只读提取）；17 个并行调度测试（Windows 跳过 1 个 POSIX 端口测试），覆盖 GPU 1 两组并行、诊断开关传递、双卡每卡一组、smoke/正式回合不重复及恢复流程。完整指令实测为 88 / 156 / 97 tokens，各顺序长度相同，低于当前 `pi05_libero` 的 200-token 上限；该配置 `discrete_state_input=False`。
 
 新增回放工具的本地验证：task 0、3 各执行并恢复 60 步固定动作，12 次请求边界的观测及逐步谓词均通过比对；最大本体观测误差约 `6.38e-6`、最大图像 MAE 约 `0.00324`。这是恢复接口探针，不是服务器动作回放或 π₀.₅ 性能结果。新增四个 CPU 测试覆盖仅执行已记录动作数、输入文件不变、恢复状态不符时停止、观测/谓词不符时拒绝判为匹配。
+
+心跳修复的本地验证：8 项服务与通信测试通过，包含真实 WebSocket 下的超时复现和延迟后继续请求，以及 checkpoint 指纹、预热和 RNG 恢复检查。并行调度与续跑测试共 17 项，Windows 跳过 1 项 POSIX 端口测试。服务器上的 58 个待补回合尚未运行回传。
 
 现场记录的本地验证：task 0、1、8 各执行五步固定动作，分别读取 4、8、6 个对象。每次读取前后模拟器状态和 pickedup 高度基准均不变，记录可序列化为有限数值 JSON。CPU 测试覆盖接触计数不跨回合继承、读取不调用带副作用的谓词、终止现场与技能记录对应，以及缺失物理记录时返回不完整。该探针没有调用 π₀.₅；服务器三回合现场诊断已另行回传并归档。
 
