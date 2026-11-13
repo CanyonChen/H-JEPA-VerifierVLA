@@ -118,6 +118,8 @@ def launch_client(task, args):
                    "--num-trials-per-task", str(args.trials_per_task - task.first_init_state),
                    "--request-offset", str(task.request_offset), "--steps-per-skill", str(args.steps_per_skill),
                    "--output-root", str(task.directory / "client")]
+        if args.record_physics:
+            command.append("--record-physics")
     else:
         command = [str(PROJECT_ROOT / ".venv-libero/bin/python"), "-u", "-m", "scripts.eval_libero",
                    "--port", str(task.port), "--suite", args.suite, "--task-id", str(task.task_id),
@@ -231,11 +233,14 @@ def main(argv=None):
     parser.add_argument("--task-ids", type=int, nargs="+")
     parser.add_argument("--trials-per-task", type=int, help="Default: LIBERO 50; Ultra-Long 10. Use 1 for smoke.")
     parser.add_argument("--steps-per-skill", type=int, default=200, help="Ultra-Long total budget = this value times skill count.")
+    parser.add_argument("--record-physics", action="store_true", help="Record live physical diagnostics in Ultra-Long clients.")
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--checkpoint", default=os.environ.get("PI05_CHECKPOINT", CHECKPOINT))
     parser.add_argument("--output-root", type=Path)
     args = parser.parse_args(argv)
     lilo = args.suite == LILO_SUITE
+    if args.record_physics and not lilo:
+        parser.error("--record-physics is only supported for Ultra-Long")
     task_count = 9 if lilo else 10
     args.task_ids = list(range(task_count)) if args.task_ids is None else args.task_ids
     args.trials_per_task = (10 if lilo else 50) if args.trials_per_task is None else args.trials_per_task

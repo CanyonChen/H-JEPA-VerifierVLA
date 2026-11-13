@@ -1,0 +1,128 @@
+{
+  "status": "CHECK_REQUIRED",
+  "output_dir": "/home/jovyan/canyon43079/H-JEPA-VerifierVLA/outputs/lilo_replay/run_20261113T101726_494964Z",
+  "policy_requests": 0,
+  "egl_device": 1,
+  "overview": [
+    {
+      "task_id": 0,
+      "outcome": "out_of_order",
+      "policy_steps": 59,
+      "skills_completed": 0,
+      "expected": "pick black bowl 1",
+      "triggered": "pick black bowl 3"
+    },
+    {
+      "task_id": 1,
+      "outcome": "out_of_order",
+      "policy_steps": 80,
+      "skills_completed": 0,
+      "expected": "pick tomato sauce 1",
+      "triggered": "pick cream cheese 2"
+    },
+    {
+      "task_id": 2,
+      "outcome": "timeout",
+      "policy_steps": 2000,
+      "skills_completed": 1,
+      "expected": "pick moka pot 1",
+      "triggered": null
+    },
+    {
+      "task_id": 3,
+      "outcome": "out_of_order",
+      "policy_steps": 59,
+      "skills_completed": 0,
+      "expected": "pick cream cheese 1",
+      "triggered": "pick black bowl 3"
+    },
+    {
+      "task_id": 4,
+      "outcome": "out_of_order",
+      "policy_steps": 76,
+      "skills_completed": 0,
+      "expected": "pick alphabet soup 1",
+      "triggered": "pick cream cheese 2"
+    },
+    {
+      "task_id": 5,
+      "outcome": "out_of_order",
+      "policy_steps": 113,
+      "skills_completed": 0,
+      "expected": "pick black bowl 1",
+      "triggered": "turn on the stove 1"
+    },
+    {
+      "task_id": 6,
+      "outcome": "out_of_order",
+      "policy_steps": 61,
+      "skills_completed": 0,
+      "expected": "pick black bowl 2",
+      "triggered": "pick black bowl 3"
+    },
+    {
+      "task_id": 7,
+      "outcome": "out_of_order",
+      "policy_steps": 76,
+      "skills_completed": 0,
+      "expected": "pick alphabet soup 1",
+      "triggered": "pick cream cheese 2"
+    },
+    {
+      "task_id": 8,
+      "outcome": "out_of_order",
+      "policy_steps": 103,
+      "skills_completed": 0,
+      "expected": "pick black bowl 1",
+      "triggered": "turn on the stove 1"
+    }
+  ],
+  "replays": [
+    {
+      "task_id": 0,
+      "status": "DIVERGED",
+      "replayed_steps": 5,
+      "verification": {
+        "settled_state_max_abs_error": 4.9202134320334946e-15,
+        "checked_observations": 2,
+        "max_state_observation_error": 0.00018266245882762877,
+        "max_image_mae": 0.21610597363945577
+      },
+      "mismatch": {
+        "policy_step": 5,
+        "observation": {
+          "state_max_abs_error": 0.00018266245882762877,
+          "image_mae": {
+            "observation/image": 0.039494313350340135,
+            "observation/wrist_image": 0.21610597363945577
+          },
+          "prompt_matches": true,
+          "matches": false
+        }
+      }
+    },
+    {
+      "task_id": 3,
+      "status": "DIVERGED",
+      "replayed_steps": 5,
+      "verification": {
+        "settled_state_max_abs_error": 9.788205996819032e-16,
+        "checked_observations": 2,
+        "max_state_observation_error": 0.00021429483108102027,
+        "max_image_mae": 0.2554474914965986
+      },
+      "mismatch": {
+        "policy_step": 5,
+        "observation": {
+          "state_max_abs_error": 0.00021429483108102027,
+          "image_mae": {
+            "observation/image": 0.048396311649659865,
+            "observation/wrist_image": 0.2554474914965986
+          },
+          "prompt_matches": true,
+          "matches": false
+        }
+      }
+    }
+  ]
+}

@@ -253,7 +253,7 @@ class LiberoParallelTest(unittest.TestCase):
     def test_ultra_long_smoke_and_formal_reuse_b3_environment(self):
         for trials in (1, 10):
             processes = SimulatedProcesses()
-            extra = ["--suite", "ultra_long_all"] + (["--trials-per-task", "1"] if trials == 1 else [])
+            extra = ["--suite", "ultra_long_all"] + (["--trials-per-task", "1", "--record-physics"] if trials == 1 else [])
             with mock.patch("scripts.check_lilo_prompts.check_prompts", return_value=[]), \
                     self.run_controller(processes, extra) as (result, directory):
                 summary = json.loads((directory / "summary.json").read_text())
@@ -272,6 +272,7 @@ class LiberoParallelTest(unittest.TestCase):
             for client in clients:
                 self.assertIn(".venv-libero", client.command[0])
                 self.assertIn("scripts.eval_lilo", client.command)
+                self.assertEqual("--record-physics" in client.command, trials == 1)
                 self.assertEqual(client.environment["MUJOCO_EGL_DEVICE_ID"], "1")
                 self.assertNotIn("--seed", client.command)
                 self.assertNotIn("--init-state-id", client.command)

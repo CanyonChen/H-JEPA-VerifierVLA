@@ -87,7 +87,9 @@ B3 已在单 GPU 完成参考结果。后续 B4 按用户最新要求仅使用 G
 
 2026-11-13 已实现 `eval_lilo.py`、九配置渲染预检和 `run_lilo_baseline.sh`。按用户更正，B4 直接复用 B3 `.venv-libero`，删除另建环境的依赖配置；预检入口为 `run_lilo_check.sh`，仅检查现有环境。共用调度器默认 GPU 1、最多两组，后续命令显式使用 `--gpu 1 --egl-device 1 --max-workers 2`；原 `eval_libero.py` 保持 B2/B3 协议。上游导入文件哈希、完整指令长度、三场景本地渲染/九配置谓词绑定，以及 CPU 计分、动作执行、调度与恢复测试均已核验。服务器九回合 smoke 实际为 GPU 1 单 worker，回传 SR 0/9、AP 1.11%、8 次乱序终止与 1 次超时，基础设施异常为 0。[回传汇总](results/pi05_lilo_ultra_long_smoke_v2.json)仅来自用户粘贴的 JSON；随后只读诊断的完整条目确认客户端提交为 `c8acc51`，原始轨迹与视频尚未下载。上游 README 明确以首次乱序或失败前的有序进度计分，不能仅因 LiLo 技能执行器没有项目的全局检测循环就删除乱序终止。当前保持 v2，先核查物体操作与谓词的对应关系。具体验证边界及逐步命令见[运行说明](lilo_baseline.md)。原版 VeriVLA 对照与 P1 的 1500 条机制诊断分开推进。
 
-最新回传中，task 0、3 在不同第一技能指令下都于第 59 步触发“拾取黑碗 3”；task 1 触发奶油奶酪 2，task 8 触发开炉灶 1。`pickedup` 仅检测 3 cm 抬升，尚不能直接认定抓错对象。粘贴内容有缺段，只归档[五个完整条目的片段](results/pi05_lilo_smoke_v2_trace_excerpt.json)。下一步运行 `replay_lilo_failures.py --task-ids 0 3 --egl-device 1`，用已有动作读取高度和夹爪接触；不调用模型，状态/观测/谓词不匹配即停止。该工具的 4 个 CPU 测试及厨房场景 60 步固定动作恢复探针已本地通过，服务器真实失败回放待用户执行。
+最新[服务器回传](results/pi05_lilo_smoke_v2_replay.json)补齐九回合摘要：三个厨房配置都触发黑碗 3，三个桌面整理配置都触发奶油奶酪 2；烹饪原顺序完成开炉灶 1 后超时，两个重排均提前触发开炉灶 1。`pickedup` 仅检测 3 cm 抬升，尚不能直接认定抓错对象。task 0、3 的服务器回放在第 5 步即观测不符，没有到达终止现场，`CHECK_REQUIRED` 不改变原始 smoke 指标。停止通过该回放推断原回合接触情况，保留[早期片段](results/pi05_lilo_smoke_v2_trace_excerpt.json)与回放记录。
+
+下一步使用 `--task-ids 0 1 8 --trials-per-task 1 --record-physics` 做三回合现场诊断，继续复用 B3 环境，GPU 1 最多两组并行；运行时直接保存物体高度和夹爪接触，再用 `inspect_lilo_run.py --compact` 回传。开关默认关闭，不改 v2 评分，新回合不并入旧 smoke 或正式评测。本地 25 个 B4 测试、17 个调度测试（跳过 1 个 Windows 不支持项）及三类场景各五步取证探针已验证；服务器现场诊断待运行。
 
 来源：[官方 benchmark 用法](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/README.md#just-want-the-benchmark)、[suite 注册及 make_env](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/lilo_vla/benchmark/__init__.py)、[复现协议与指标](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/docs/REPRODUCTION.md)。
 

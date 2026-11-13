@@ -11,8 +11,9 @@ import numpy as np
 
 from scripts.check_libero_env import PROJECT_ROOT, make_policy_observation
 from scripts.inspect_lilo_run import inspect_run, skill_description
+from scripts.lilo_diagnostics import object_snapshot
 from scripts.lilo_protocol import (PROTOCOL, LILO_COMMIT, SkillPredicates, initialize_benchmark,
-                                   resolve_object, settle_environment)
+                                   settle_environment)
 
 
 STATE_ATOL = 1e-5
@@ -36,28 +37,6 @@ def compare_observation(observation, saved_path):
     return dict(state_max_abs_error=state_error, image_mae=image_errors, prompt_matches=prompt_matches,
                 matches=bool(np.isfinite(state_error) and state_error <= STATE_ATOL and prompt_matches
                              and all(np.isfinite(v) and v <= IMAGE_MAE_LIMIT for v in image_errors.values())))
-
-
-def object_snapshot(env, predicates, names):
-    result = {}
-    robot = env.env.robots[0]
-    grip_position = env.sim.data.get_site_xpos(robot.gripper.important_sites["grip_site"])
-    heights = predicates.get_predicate("pickedup").initial_heights
-    for name in names:
-        state = resolve_object(predicates.states, name)
-        model = env.env.get_object(state.object_name)
-        position = np.asarray(state.get_geom_state()["pos"])
-        contacts = {side: bool(env.env.check_contact(robot.gripper.important_geoms[side + "_fingerpad"],
-                                                    model.contact_geoms)) for side in ("left", "right")}
-        baseline = heights.get(state.object_name)
-        result[name] = dict(position_m=position.tolist(), height_baseline_m=baseline,
-                            height_delta_m=float(position[2] - baseline) if baseline is not None else None,
-                            gripper_distance_m=float(np.linalg.norm(position - grip_position)),
-                            fingerpad_contacts=contacts, both_fingerpads_contact=all(contacts.values()))
-        if state.has_turnon_affordance:
-            result[name]["joint_positions"] = [np.asarray(v).tolist() for v in state.get_joint_state()]
-            result[name]["turnon"] = bool(state.turn_on())
-    return result
 
 
 def replay_episode(suite, directory, row):

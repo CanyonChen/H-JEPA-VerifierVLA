@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from scripts.inspect_lilo_run import inspect_run
+from scripts.inspect_lilo_run import compact_report, inspect_run
 
 
 class LiloInspectionTest(unittest.TestCase):
@@ -67,6 +67,30 @@ class LiloInspectionTest(unittest.TestCase):
         self.assertEqual(report["inspection_status"], "INCOMPLETE")
         self.assertIsNone(report["episodes"][0]["out_of_order_event"])
         self.assertTrue(report["episodes"][0]["inspection_errors"])
+
+    def test_live_physics_is_read_at_the_terminal_step_and_missing_steps_are_reported(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            directory = self.fixture(root)
+            path = directory.parent.parent / "run_config.json"
+            config = json.loads(path.read_text(encoding="utf-8"))
+            config["record_physics"] = True
+            config["task"]["predicates"] = [[["pickedup", "a"]], [["pickedup", "b"]], [["pickedup", "c"]]]
+            path.write_text(json.dumps(config), encoding="utf-8")
+            frames = [dict(source="live_rollout", policy_step=step, objects={
+                name: dict(height_delta_m=0.04, both_fingerpads_contact=True,
+                           both_fingerpads_contact_steps=step) for name in ("a", "b", "c")}) for step in (1, 2)]
+            physics = directory / "physics.jsonl"
+            physics.write_text("".join(json.dumps(r) + "\n" for r in frames), encoding="utf-8")
+            report = inspect_run(root)
+            compact = compact_report(report)
+            self.assertEqual(report["inspection_status"], "COMPLETE")
+            live = compact["episodes"][0]["live_physics"]
+            self.assertEqual(set(live["objects"]), {"b", "c"})
+            self.assertEqual(live["policy_step"], 2)
+            self.assertEqual(live["objects"]["c"]["both_fingerpads_contact_steps"], 2)
+            physics.write_text(json.dumps(frames[0]) + "\n", encoding="utf-8")
+            self.assertEqual(inspect_run(root)["inspection_status"], "INCOMPLETE")
 
 
 if __name__ == "__main__":

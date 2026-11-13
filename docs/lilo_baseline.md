@@ -1,6 +1,6 @@
 # B4：π₀.₅ / LiLo-VLA Ultra-Long
 
-更新日期：2026-11-13。服务器已回传 v2 协议的 9 回合 smoke：0 次成功、1 次超时、8 次乱序终止，AP 为 1.11%，基础设施异常为 0。当前先审计乱序终止记录，再决定正式 90 回合使用的评分协议。后续运行固定为 **GPU 1，最多两组并行**，复用 B3 环境。本轮先建立单候选 π₀.₅ baseline，后续 π₀.₅＋原版 VeriVLA 沿用同一协议。
+更新日期：2026-11-13。服务器已回传 v2 协议的 9 回合 smoke：0 次成功、1 次超时、8 次乱序终止，AP 为 1.11%，基础设施异常为 0。旧动作回放在第 5 步观测不符；当前保持 v2，下一步用三回合现场诊断核查终止原因，正式 90 回合待执行。后续运行固定为 **GPU 1，最多两组并行**，复用 B3 环境。本轮先建立单候选 π₀.₅ baseline，后续 π₀.₅＋原版 VeriVLA 沿用同一协议。
 
 ## 固定协议
 
@@ -66,7 +66,7 @@ env -u PYTHONPATH .venv-libero/bin/python -m scripts.inspect_lilo_run \
 
 ### 逐步回传后的诊断
 
-用户粘贴的诊断在 task 4 附近有重复、缺失和 task 7 路径混入；[片段归档](results/pi05_lilo_smoke_v2_trace_excerpt.json)仅记录 0、1、2、3、8 五个完整条目，不补造其余四项。
+首份用户诊断粘贴在 task 4 附近有缺段，[片段归档](results/pi05_lilo_smoke_v2_trace_excerpt.json)保留五个完整条目。随后[回放工具的回传](results/pi05_lilo_smoke_v2_replay.json)从原文件重读，补齐九回合摘要如下；这些仍来自用户回传，原始视频尚未下载。
 
 | task | 终止步 | 当时要求 | 触发的未来技能 / 结果 |
 | --- | --- | --- | --- |
@@ -74,25 +74,37 @@ env -u PYTHONPATH .venv-libero/bin/python -m scripts.inspect_lilo_run \
 | 1 | 80 | 拾取番茄酱 1 | 奶油奶酪 2 的 `pickedup` 变真 |
 | 2 | 2000 | 拾取摩卡壶 1 | 已完成开炉灶 1，随后超时，进度 1/10 |
 | 3 | 59 | 拾取奶油奶酪 1 | 黑碗 3 的 `pickedup` 变真 |
+| 4 | 76 | 拾取字母汤 1 | 奶油奶酪 2 的 `pickedup` 变真 |
+| 5 | 113 | 拾取黑碗 1 | 炉灶 1 的 `turnon` 变真 |
+| 6 | 61 | 拾取黑碗 2 | 黑碗 3 的 `pickedup` 变真 |
+| 7 | 76 | 拾取字母汤 1 | 奶油奶酪 2 的 `pickedup` 变真 |
 | 8 | 103 | 拾取黑碗 1 | 炉灶 1 的 `turnon` 变真 |
 
 上游 [`pickedup`](../third_party/lilo_vla/lilo_vla/libero_compat.py) 只要求物体比基准位置升高至少 0.03 m，不检查夹爪接触。上述布尔记录证明谓词触发，尚不能区分主动抓错对象与碰撞抬升。task 8 是另一种关节状态谓词，不能把全部失败都归因于拾取阈值。task 0、3 指令不同却在相同步数触发同一物体，提示需要检查策略对顺序指令的响应，但当前还不能断言模型忽略了语言。
 
-下一步回放厨房场景 task 0 和 3 的既有动作，各 59 步；不启动模型服务、不产生新的策略请求、不改原始记录或评分。只在 GPU 1 上串行创建仿真器，符合最多两组的限制：
+### 回放结论与当前下一步
+
+服务器在 GPU 1 上回放 task 0、3，模型请求数为 0；两者均在第 5 步的第二次观测核验返回 `DIVERGED`，没有到达第 59 步终止现场。重置和静置后的状态误差分别约 `4.92e-15`、`9.79e-16`，但执行动作后，本体观测误差升至约 `1.83e-4`、`2.14e-4`，手腕图像 MAE 为 `0.216`、`0.255`，超过回放容差。因此回传 `CHECK_REQUIRED`，不能据此给原回合下夹爪接触结论。开头的宏配置、Gym 和 NumPy 警告不是此次停止原因，不据此更换 B3 依赖。
+
+保留旧回放记录和容差，转为实际 rollout 现场取证。新增显式 `--record-physics` 开关：在每个已执行的策略步读取 pickedup/turnon 对象的高度、夹爪距离、夹爪任意部位接触、左右指垫接触和开关关节位置，写入 `physics.jsonl`；分别累计任意夹爪接触、双指垫接触的步数和最近接触步，以区分抓取与拨动开关。读取不调用会修改可视化属性的 `turn_on()`；技能真值仍由原评分器记录。该开关默认关闭，v2 任务指令、策略、控制预算与终止规则保持不变。
+
+下一次只跑 task 0、1、8 各一回合，覆盖三类场景，GPU 1 最多两组并行。这是新初始化的新诊断样本，不是旧回合的重放，不并入原九回合 smoke 或正式九十回合；耗时包含额外记录开销。复用 B3 `.venv`、`.venv-libero` 和权重缓存：
 
 ```bash
 cd ~/canyon43079/H-JEPA-VerifierVLA
 git pull --ff-only origin main
-env -u PYTHONPATH .venv-libero/bin/python -m scripts.replay_lilo_failures \
-  --run-dir outputs/pi05_lilo_parallel/pi05_ultra_long_all_gpu1_unseeded_20261113T081550_589909Z \
-  --task-ids 0 3 --egl-device 1
+B4_DIAG_ROOT="outputs/pi05_lilo_live_$(date -u +%Y%m%dT%H%M%SZ)"
+
+bash scripts/run_lilo_baseline.sh \
+  --gpu 1 --egl-device 1 --max-workers 2 \
+  --task-ids 0 1 8 --trials-per-task 1 --record-physics \
+  --output-root "$B4_DIAG_ROOT"
+
+env -u PYTHONPATH .venv-libero/bin/python -m scripts.inspect_lilo_run \
+  --run-dir "$B4_DIAG_ROOT"/pi05_ultra_long_all_gpu1_unseeded_* --compact
 ```
 
-回传末尾的精简 JSON。`overview` 从服务器文件重读九回合，可补全之前粘贴缺失的内容；`replays` 给出所选回合的物体抬升量、夹爪距离和双指垫接触记录。详细结果另存 `outputs/lilo_replay/run_*/report.json`。接触是物理证据，不作为新成功规则，也不直接证明操作意图。
-
-回放先从 `reset_sim_state.npy` 恢复并静置十步，比对 `initial_sim_state.npy`，再逐请求比对保存的本体状态、相机图像和 prompt，逐控制步比对技能真值；只执行每块记录的 `executed_steps`。状态容差为 `1e-5`，uint8 图像平均绝对误差上限为 `0.1`；任一检查不满足就返回 `DIVERGED`，不输出该回合的最终接触结论。`MATCHED` 只表示这些可观测记录在容差内一致，不代表完整隐藏状态或任务成功已被证明。
-
-本地零动作恢复探针发现另外两类场景即使模拟器状态接近，图像仍可能不同；旧产物未保存完整场景 XML，不能假定恢复状态数组就恢复了全部场景。因此本次只选厨房场景，服务器仍须逐项通过一致性检查。正式 90 回合与 VeriVLA 对照尚未运行。
+回传最后的精简 JSON，重点是每回合的 `live_physics`：终止时的高度差、接触状态及此前双指垫接触步数。它来自新回合的实际执行现场；接触是物理证据，不作为新成功规则，也不直接证明操作意图。读档工具会检查物理记录是否覆盖全部技能记录；旧运行未启用现场记录时该字段为 `null`。正式 90 回合与 VeriVLA 对照尚未运行。
 
 ## 服务器执行
 
@@ -146,8 +158,10 @@ bash scripts/run_lilo_baseline.sh \
 
 本轮单卡运行位于 `outputs/pi05_lilo_parallel/pi05_ultra_long_all_gpu1_unseeded_*/`，包含 `run_config.json`、`summary.json`、合并的 `episodes.jsonl`、GPU 日志，以及各 task 的服务和客户端日志。`task_devices` 记录任务实际分配的模型卡和 EGL 卡，`gpu.csv` 按卡记录；`sampled_peak_vram_gib_by_gpu` 是各卡峰值，本轮仅 GPU 1，`sampled_peak_vram_gib` 对应该卡的总占用采样峰值。每回合保存初始模拟器状态、双相机视频、各次策略请求的完整观测、动作块及已执行步数、逐步技能真值与事件、最终 `result.json`。checkpoint 内容指纹、服务 ID 和请求编号沿用 B3 实现。
 
-本地已验证：上游 8 个导入文件的 Git blob 哈希全部匹配固定提交；9 配置的数量、技能映射和完整指令；三种场景实际创建、64×64 离屏渲染及九配置全部谓词绑定；22 个 B4 CPU 协议/rollout/预检/诊断/回放测试；17 个并行调度测试（Windows 跳过 1 个 POSIX 端口测试），覆盖 GPU 1 两组并行、双卡每卡一组、空闲卡继续领取任务、smoke/正式回合不重复及原有恢复流程。完整指令实测为 88 / 156 / 97 tokens，各顺序长度相同，低于当前 `pi05_libero` 的 200-token 上限；该配置 `discrete_state_input=False`。
+本地已验证：上游 8 个导入文件的 Git blob 哈希全部匹配固定提交；9 配置的数量、技能映射和完整指令；三种场景实际创建、64×64 离屏渲染及九配置全部谓词绑定；25 个 B4 CPU 协议/rollout/预检/诊断/回放测试；17 个并行调度测试（Windows 跳过 1 个 POSIX 端口测试），覆盖 GPU 1 两组并行、诊断开关传递、双卡每卡一组、smoke/正式回合不重复及恢复流程。完整指令实测为 88 / 156 / 97 tokens，各顺序长度相同，低于当前 `pi05_libero` 的 200-token 上限；该配置 `discrete_state_input=False`。
 
 新增回放工具的本地验证：task 0、3 各执行并恢复 60 步固定动作，12 次请求边界的观测及逐步谓词均通过比对；最大本体观测误差约 `6.38e-6`、最大图像 MAE 约 `0.00324`。这是恢复接口探针，不是服务器动作回放或 π₀.₅ 性能结果。新增四个 CPU 测试覆盖仅执行已记录动作数、输入文件不变、恢复状态不符时停止、观测/谓词不符时拒绝判为匹配。
+
+现场记录的本地验证：task 0、1、8 各执行五步固定动作，分别读取 4、8、6 个对象。每次读取前后模拟器状态和 pickedup 高度基准均不变，记录可序列化为有限数值 JSON。CPU 测试覆盖接触计数不跨回合继承、读取不调用带副作用的谓词、终止现场与技能记录对应，以及缺失物理记录时返回不完整。该探针没有调用 π₀.₅；三回合现场诊断仍待服务器运行。
 
 本地场景检查使用已有 Windows Python 3.8 / MuJoCo 3.2.3 验证环境；三类场景均通过 10 步静置＋5 步固定动作兼容探针，该探针不使用 π₀.₅ 策略。`reset_sim_state.npy` 保存静置前状态，`initial_sim_state.npy` 保存静置后、首次策略请求前的状态。服务器已回传 GPU 1 单 worker 的九回合结果，原始轨迹与视频待核查；本轮尚无 GPU 1 双 worker 的实测吞吐结果。LiLo 谓词补丁仅在 B4 客户端进程内导入，不改写共享 LIBERO 源文件；B3 的入口与归档 459/500 结果保留。

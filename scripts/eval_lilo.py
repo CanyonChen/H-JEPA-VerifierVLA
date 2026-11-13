@@ -16,6 +16,7 @@ import numpy as np
 
 from scripts.check_libero_env import PROJECT_ROOT, make_policy_observation
 from scripts.eval_libero import episode_progress, validate_server_provenance, write_json
+from scripts.lilo_diagnostics import LiveDiagnostics, PHYSICS_SCHEMA
 from scripts.lilo_protocol import (LILO_COMMIT, PROTOCOL, STEPS_PER_SKILL, SUITE, WAIT_STEPS, OrderedProgress,
                                    SkillPredicates, initialize_benchmark, settle_environment, summarize_lilo, task_definitions)
 
@@ -97,6 +98,7 @@ def main(argv=None):
     parser.add_argument("--num-trials-per-task", type=int, default=1)
     parser.add_argument("--request-offset", type=int, default=0)
     parser.add_argument("--steps-per-skill", type=int, default=STEPS_PER_SKILL)
+    parser.add_argument("--record-physics", action="store_true", help="Record live object heights and fingerpad contacts for diagnosis.")
     parser.add_argument("--output-root", type=Path, default=PROJECT_ROOT / "outputs/pi05_lilo")
     args = parser.parse_args(argv)
     if min(args.trial_start, args.request_offset) < 0 or min(args.num_trials_per_task, args.steps_per_skill) < 1:
@@ -118,7 +120,8 @@ def main(argv=None):
                   wait_steps=WAIT_STEPS, action_shape=[10, 7], replan_steps=5,
                   budget_scope="project end-to-end control budget; no LiLo planner or retries",
                   trial_start=args.trial_start, trials=args.num_trials_per_task,
-                  restored_request_count=args.request_offset)
+                  restored_request_count=args.request_offset, record_physics=args.record_physics,
+                  physics_schema=PHYSICS_SCHEMA if args.record_physics else None)
     write_json(run_dir / "run_config.json", config)
     rows_path = run_dir / "episodes.jsonl"
     rows_path.touch()
@@ -159,6 +162,8 @@ def main(argv=None):
                     writer = stack.enter_context(imageio.get_writer(directory / "video.mp4", fps=10))
                     decisions = stack.enter_context((directory / "decisions.jsonl").open("w", encoding="utf-8"))
                     progress = stack.enter_context((directory / "skills.jsonl").open("w", encoding="utf-8"))
+                    physics = stack.enter_context((directory / "physics.jsonl").open("w", encoding="utf-8")) if args.record_physics else None
+                    diagnostics = LiveDiagnostics(env, predicates, task) if args.record_physics else None
 
                     def on_frame(observation):
                         writer.append_data(np.concatenate((observation["observation/image"], observation["observation/wrist_image"]), axis=1))
@@ -173,6 +178,9 @@ def main(argv=None):
                     def on_progress(record):
                         progress.write(json.dumps(record, allow_nan=False) + "\n")
                         progress.flush()
+                        if diagnostics is not None:
+                            physics.write(json.dumps(diagnostics.observe(record["policy_step"]), allow_nan=False) + "\n")
+                            physics.flush()
 
                     rollout(env, obs, client, task, predicates, result, on_frame, on_decision, on_progress,
                             max_steps, offset, provenance["service_id"])
