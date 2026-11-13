@@ -8,7 +8,7 @@
 
 截至 2026-11-12，统一 uv 模型环境、CPU/GPU 兼容性、官方 π₀.₅-LIBERO 检查点推理和 H100 NVIDIA EGL 均已通过服务器检查。LIBERO-Long 正式评测已回传 500 个有效 episode，459 次成功、41 次超时，成功率 **91.8%**，基础设施异常为 0。结果由首段 290 回合与恢复段 210 回合合并。已完成运行使用 3 组并行，运行结束后默认配置改为 2 组。原始视频与逐回合记录待拉取复核。[评测记录](docs/libero_baseline.md)、[回传汇总](docs/results/pi05_libero_long_seed7.json)
 
-2026-11-13，B4 调整为 **LiLo-VLA Ultra-Long**：3 个场景、每场景 3 种技能顺序，共 9 个配置，首轮计划每配置 10 次，报告成功率 SR 与平均进度 AP。原 Spatial、Object、Goal 三套评测后置。Ultra-Long 适配与评测尚未执行；先建立 π₀.₅ baseline，再以相同协议评测 π₀.₅＋原版 VeriVLA。[B4 计划与官方来源](docs/i_baseline.md)
+2026-11-13，B4 调整为 **LiLo-VLA Ultra-Long**：3 个场景、每场景 3 种技能顺序，共 9 个配置，正式每配置 10 次，报告成功率 SR 与平均进度 AP。适配器、独立环境锁文件与并行入口已完成本地验证，服务器预检、9 回合 smoke 和 90 回合正式评测待运行。原 Spatial、Object、Goal 三套评测后置。先建立 π₀.₅ baseline，再以相同协议评测 π₀.₅＋原版 VeriVLA。[B4 运行指令与协议](docs/lilo_baseline.md)
 
 - `openpi/` 导入自上游提交 `215abfb217dbac7d5f1273282331b9b1866c0479`，作为本仓库的普通源码目录管理。
 - `openpi/third_party/` 包含 ALOHA 与 LIBERO 的完整源码，导入版本分别为 `d1dc83afd89ded4379851257fe5d85632d31d5ec`、`f78abd68ee283de9f9be3c8f7e2a9ad60246e95c`。三者内部的 Git 元数据已移除。
@@ -24,7 +24,7 @@
 | LIBERO 仿真环境、EGL 和真实观测通信 | [LIBERO 安装与检查](docs/libero_setup.md) |
 | 十个任务各一个完整 episode、视频与结果记录 | [LIBERO smoke 检查](docs/libero_smoke.md) |
 | 每任务 50 个初始状态、检查点指纹和逐任务统计 | [LIBERO-Long 500 回合评测](docs/libero_baseline.md) |
-| B4：Ultra-Long 的 9 个配置、SR/AP 与适配计划 | [LiLo-VLA Ultra-Long 评测计划](docs/i_baseline.md) |
+| B4：Ultra-Long 环境预检、9 回合 smoke、90 回合 SR/AP | [LiLo-VLA Ultra-Long 运行说明](docs/lilo_baseline.md) |
 | H-JEPA 中英双语论文 | [H-JEPA.md](H-JEPA/paper-latex/H-JEPA.md) |
 | H-JEPA 代码与运行说明 | [上游代码 README](H-JEPA/repository-main/README.md) |
 | H-JEPA 方法讲解幻灯片 | [deck.html](H-JEPA/repo/deck.html) |
@@ -40,6 +40,8 @@ HTML 页面需克隆到本地后用浏览器打开，并保留配套素材的相
 .
 ├── docs/                       研究与 baseline 实验计划
 ├── scripts/                    模型环境与官方检查点验证入口
+├── envs/lilo/                  B4 独立仿真环境与依赖锁
+├── third_party/lilo_vla/        固定版本 Ultra-Long benchmark 子集
 ├── H-JEPA/
 │   ├── paper-latex/             论文 LaTeX、双语 Markdown 与图表
 │   ├── reading/                 论文阅读、代码核对与图表素材
@@ -109,6 +111,7 @@ CUDA_VISIBLE_DEVICES=1 bash scripts/run_pi05_checkpoint.sh
 - H-JEPA 代码来源：[kevinghst/H-JEPA](https://github.com/kevinghst/H-JEPA)，保留其 [MIT 许可证](H-JEPA/repository-main/LICENSE)。
 - 基础策略代码来源：[Physical-Intelligence/openpi](https://github.com/Physical-Intelligence/openpi)，许可见其 [LICENSE](openpi/LICENSE) 与 [LICENSE_GEMMA.txt](openpi/LICENSE_GEMMA.txt)。
 - VeriVLA 资料来源见 [本地阅读报告的来源说明](VeriVLA/repo/README.md#来源与数据口径)。
+- LiLo-VLA benchmark 来源：[YY-GX/LiLo-VLA](https://github.com/YY-GX/LiLo-VLA)，固定提交与范围见 [UPSTREAM.md](third_party/lilo_vla/UPSTREAM.md)，保留其 [MIT 许可证](third_party/lilo_vla/LICENSE)。
 - 论文原文、图片与第三方前端库保留各自的版权和许可；本项目为独立研究整理。
 
 根目录 `.gitignore` 排除本地环境、缓存、日志、模型权重及实验输出；论文 PDF、图片和离线页面素材纳入版本管理。

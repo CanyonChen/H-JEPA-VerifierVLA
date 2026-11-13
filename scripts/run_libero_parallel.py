@@ -20,6 +20,7 @@ import urllib.request
 from scripts.eval_libero import MAX_STEPS, PROJECT_ROOT, summarize, write_json
 from scripts.serve_pi05_libero import CHECKPOINT
 from scripts.check_server_resources import GIB, resource_status
+from scripts.lilo_protocol import SUITE as LILO_SUITE, PROTOCOL as LILO_PROTOCOL, aggregate_lilo, summarize_lilo
 
 
 @dataclass
@@ -106,12 +107,20 @@ def server_ready(task):
 
 def launch_client(task, args):
     task.client_log = (task.directory / "client.log").open("w", encoding="utf-8")
-    command = [str(PROJECT_ROOT / ".venv-libero/bin/python"), "-u", "-m", "scripts.eval_libero",
-               "--port", str(task.port), "--suite", args.suite, "--task-id", str(task.task_id),
-               "--init-state-id", str(task.first_init_state),
-               "--num-trials-per-task", str(args.trials_per_task - task.first_init_state),
-               "--request-offset", str(task.request_offset),
-               "--seed", str(args.seed), "--output-root", str(task.directory / "client")]
+    if args.suite == LILO_SUITE:
+        command = [str(PROJECT_ROOT / ".venv-lilo/bin/python"), "-u", "-m", "scripts.eval_lilo",
+                   "--port", str(task.port), "--task-id", str(task.task_id),
+                   "--trial-start", str(task.first_init_state),
+                   "--num-trials-per-task", str(args.trials_per_task - task.first_init_state),
+                   "--request-offset", str(task.request_offset), "--steps-per-skill", str(args.steps_per_skill),
+                   "--output-root", str(task.directory / "client")]
+    else:
+        command = [str(PROJECT_ROOT / ".venv-libero/bin/python"), "-u", "-m", "scripts.eval_libero",
+                   "--port", str(task.port), "--suite", args.suite, "--task-id", str(task.task_id),
+                   "--init-state-id", str(task.first_init_state),
+                   "--num-trials-per-task", str(args.trials_per_task - task.first_init_state),
+                   "--request-offset", str(task.request_offset),
+                   "--seed", str(args.seed), "--output-root", str(task.directory / "client")]
     task.client = subprocess.Popen(command, cwd=PROJECT_ROOT, stdout=task.client_log, stderr=subprocess.STDOUT,
                                    env=child_environment(args.gpu, args.egl_device, False), start_new_session=True)
     logging.info("Task %d started %d episodes from init %d", task.task_id,
@@ -151,7 +160,9 @@ def episode_rows(output_dir):
     return rows
 
 
-def aggregate(rows, task_ids, trials, run_error=None):
+def aggregate(rows, task_ids, trials, run_error=None, suite="libero_10"):
+    if suite == LILO_SUITE:
+        return aggregate_lilo(rows, task_ids, trials, run_error)
     expected = {(task, init) for task in task_ids for init in range(trials)}
     seen = [(row["task_id"], row["init_state_id"]) for row in rows]
     if len(set(seen)) != len(seen) or not set(seen).issubset(expected):
@@ -176,9 +187,12 @@ def resume_state(args):
     for key in ("suite", "seed", "task_ids", "trials_per_task", "checkpoint"):
         if config[key] != getattr(args, key):
             raise ValueError("Resume setting differs from original run: {}".format(key))
+    if args.suite == LILO_SUITE and (config.get("steps_per_skill") != args.steps_per_skill
+                                    or config.get("lilo_protocol") != LILO_PROTOCOL):
+        raise ValueError("Ultra-Long resume budget or scoring protocol differs")
     rows = episode_rows(source)
-    aggregate(rows, args.task_ids, args.trials_per_task)
-    retained = [row for row in rows if row["outcome"] in ("success", "timeout")]
+    aggregate(rows, args.task_ids, args.trials_per_task, suite=args.suite)
+    retained = [row for row in rows if row["outcome"] in ("success", "timeout", "out_of_order")]
     hashes = set()
     for row in retained:
         artifact_dir = (source / row["artifacts"]).resolve()
@@ -188,10 +202,11 @@ def resume_state(args):
     if retained and (len(hashes) != 1 or len(next(iter(hashes))) != 64):
         raise ValueError("Retained episodes must identify the same checkpoint content")
     for task in args.task_ids:
-        task_rows = sorted((row for row in retained if row["task_id"] == task), key=lambda row: row["init_state_id"])
+        index_key = "trial_id" if args.suite == LILO_SUITE else "init_state_id"
+        task_rows = sorted((row for row in retained if row["task_id"] == task), key=lambda row: row[index_key])
         offset = 0
         for init, row in enumerate(task_rows):
-            if (row["init_state_id"] != init or row.get("first_server_request_id") != offset + 1
+            if (row[index_key] != init or row.get("first_server_request_id") != offset + 1
                     or row.get("last_server_request_id") != offset + row["policy_requests"]):
                 raise ValueError("Retained task {} must have a contiguous valid episode/request prefix".format(task))
             offset += row["policy_requests"]
@@ -206,26 +221,41 @@ def main(argv=None):
     parser.add_argument("--max-workers", type=int, default=2)
     parser.add_argument("--resume-from", type=Path)
     parser.add_argument("--base-port", type=int, default=8100)
-    parser.add_argument("--suite", choices=tuple(MAX_STEPS), default="libero_10")
-    parser.add_argument("--task-ids", type=int, nargs="+", default=list(range(10)))
-    parser.add_argument("--trials-per-task", type=int, default=50)
+    parser.add_argument("--suite", choices=tuple(MAX_STEPS) + (LILO_SUITE,), default="libero_10")
+    parser.add_argument("--task-ids", type=int, nargs="+")
+    parser.add_argument("--trials-per-task", type=int, help="Default: LIBERO 50; Ultra-Long 10. Use 1 for smoke.")
+    parser.add_argument("--steps-per-skill", type=int, default=200, help="Ultra-Long total budget = this value times skill count.")
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--checkpoint", default=os.environ.get("PI05_CHECKPOINT", CHECKPOINT))
-    parser.add_argument("--output-root", type=Path, default=PROJECT_ROOT / "outputs/pi05_libero_parallel")
+    parser.add_argument("--output-root", type=Path)
     args = parser.parse_args(argv)
-    if not 1 <= args.trials_per_task <= 50 or args.max_workers < 1:
-        parser.error("trials-per-task must be 1..50 and max-workers must be positive")
-    if len(set(args.task_ids)) != len(args.task_ids) or any(task not in range(10) for task in args.task_ids):
-        parser.error("task-ids must be unique values in 0..9")
+    lilo = args.suite == LILO_SUITE
+    task_count = 9 if lilo else 10
+    args.task_ids = list(range(task_count)) if args.task_ids is None else args.task_ids
+    args.trials_per_task = (10 if lilo else 50) if args.trials_per_task is None else args.trials_per_task
+    args.output_root = args.output_root or PROJECT_ROOT / ("outputs/pi05_lilo_parallel" if lilo else "outputs/pi05_libero_parallel")
+    if lilo:
+        args.seed = None  # Native bare reset; never seed or use LIBERO's fixed init-state files.
+    if args.trials_per_task < 1 or (not lilo and args.trials_per_task > 50) or args.max_workers < 1:
+        parser.error("trials-per-task and max-workers must be positive; standard LIBERO allows at most 50 trials")
+    if len(set(args.task_ids)) != len(args.task_ids) or any(task not in range(task_count) for task in args.task_ids):
+        parser.error("task-ids must be unique values in 0..{}".format(task_count - 1))
+    if args.steps_per_skill < 1:
+        parser.error("steps-per-skill must be positive")
     if args.gpu < 0 or args.egl_device < 0 or not 0 < args.base_port <= 65526:
         parser.error("GPU/device indices and the port range must be valid")
     retained, task_starts, args.checkpoint_sha256 = resume_state(args)
+    prompt_report = None
+    if lilo:
+        from scripts.check_lilo_prompts import check_prompts
+        prompt_report = check_prompts()
     initial_resources = resource_status()
     pending = [task for task in args.task_ids if task_starts[task]["first_init_state"] < args.trials_per_task]
     worker_limit = min(args.max_workers, len(pending))
     initial_gpu = gpu_status(args.gpu)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%fZ")
-    output_dir = args.output_root.resolve() / "pi05_{}_gpu{}_seed{}_{}".format(args.suite, args.gpu, args.seed, stamp)
+    output_dir = args.output_root.resolve() / "pi05_{}_gpu{}_{}_{}".format(
+        args.suite, args.gpu, "unseeded" if lilo else "seed{}".format(args.seed), stamp)
     output_dir.mkdir(parents=True)
     with (output_dir / "retained_episodes.jsonl").open("w", encoding="utf-8") as stream:
         for row in retained:
@@ -239,9 +269,14 @@ def main(argv=None):
                   retained_episodes=len(retained), task_starts=task_starts, initial_resources=initial_resources,
                   initial_gpu=initial_gpu, model_rng_protocol="Each task has a fresh service, warmup restores key 0.",
                   concurrency_protocol="Fixed worker count with concurrent model startup and task completion refill.")
+    if lilo:
+        config.update(lilo_protocol=LILO_PROTOCOL, prompt_report=prompt_report,
+                      initialization="unseeded bare reset; new simulator per trial",
+                      budget_scope="project end-to-end policy steps; no LiLo motion planner or retries")
     if args.resume_from:
         config["model_rng_protocol"] = "Key 0 advanced by each task's completed request count, then continuous sampling."
-        config["resume_environment_protocol"] = "New simulator seeded at each resumed task segment."
+        config["resume_environment_protocol"] = ("New unseeded simulator per missing trial." if lilo
+                                                 else "New simulator seeded at each resumed task segment.")
     write_json(output_dir / "run_config.json", config)
     logging.info("Run directory: %s", output_dir)
     logging.info("GPU %d, fixed concurrency %d", args.gpu, worker_limit)
@@ -278,7 +313,7 @@ def main(argv=None):
                     # Include rows flushed between the live read and process exit.
                     rows = episode_rows(output_dir)
                     task_rows = [row for row in rows if row["task_id"] == task.task_id]
-                    task_summary = summarize(task_rows, args.trials_per_task)
+                    task_summary = (summarize_lilo if lilo else summarize)(task_rows, args.trials_per_task)
                     if task.client.returncode != 0 or task_summary["status"] != "PASS":
                         run_error = "Task {} incomplete; see {}".format(task.task_id, task.directory / "client.log")
                     logging.info("Task %d finished with %d successes, %d timeouts, %d valid episodes",
@@ -301,7 +336,7 @@ def main(argv=None):
                     running.append(task)
                     pending.pop(0)
             if elapsed >= next_report:
-                progress = aggregate(rows, args.task_ids, args.trials_per_task, run_error)
+                progress = aggregate(rows, args.task_ids, args.trials_per_task, run_error, args.suite)
                 write_json(output_dir / "summary.json", progress)
                 logging.info("%d/%d valid episodes, GPU %.2f GiB, utilization %d%%, %d active tasks",
                              progress["valid_episodes"], progress["planned_episodes"], status["used_mib"] / 1024,
@@ -319,7 +354,7 @@ def main(argv=None):
             stop_task(task)
         metrics.close()
         rows = episode_rows(output_dir)
-        summary = aggregate(rows, args.task_ids, args.trials_per_task, run_error)
+        summary = aggregate(rows, args.task_ids, args.trials_per_task, run_error, args.suite)
         if args.resume_from:
             summary["scope"] += " with recorded recovery segments and re-created simulators"
         elapsed = time.perf_counter() - started

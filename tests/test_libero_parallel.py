@@ -33,6 +33,7 @@ class SimulatedProcesses:
 
     def popen(self, command, **kwargs):
         model = command[command.index("-m") + 1] == "scripts.serve_pi05_libero"
+        lilo = "scripts.eval_lilo" in command
         output_root = Path(command[command.index("--output-root") + 1])
         task_id = int(output_root.parent.name[4:])
         port = int(command[command.index("--port") + 1])
@@ -49,20 +50,29 @@ class SimulatedProcesses:
                 self.environment = kwargs["env"]
                 self.command = command
                 if not model:
-                    self.first_init = int(command[command.index("--init-state-id") + 1])
+                    self.first_init = int(command[command.index("--trial-start" if lilo else "--init-state-id") + 1])
+                    self.end = self.first_init + int(command[command.index("--num-trials-per-task") + 1])
                     self.path = output_root / "run" / "episodes.jsonl"
                     self.path.parent.mkdir(parents=True)
-                    self.path.write_text(json.dumps(episode(task_id, self.first_init)) + "\n", encoding="utf-8")
+                    self.path.write_text(json.dumps(self.row(self.first_init)) + "\n", encoding="utf-8")
                     (self.path.parent / "run_config.json").write_text(json.dumps({"server_metadata": {
                         "evaluation": {"checkpoint_manifest": {"sha256": "0" * 64}}}}), encoding="utf-8")
+
+            def row(self, index, outcome="success"):
+                row = episode(task_id, index, outcome)
+                if lilo:
+                    row["trial_id"] = row.pop("init_state_id")
+                    total = (9, 16, 10)[task_id % 3]
+                    row.update(skills_completed=total if outcome == "success" else 0, total_skills=total)
+                return row
 
             def poll(self):
                 if self.returncode is None and not model and owner.tick - self.started >= 6:
                     # The final rows arrive after the controller's live progress read.
                     with self.path.open("a", encoding="utf-8") as stream:
-                        for init in range(self.first_init + 1, 50):
-                            outcome = "infrastructure_error" if task_id == owner.fail_task and init == 49 else "success"
-                            stream.write(json.dumps(episode(task_id, init, outcome)) + "\n")
+                        for init in range(self.first_init + 1, self.end):
+                            outcome = "infrastructure_error" if task_id == owner.fail_task and init == self.end - 1 else "success"
+                            stream.write(json.dumps(self.row(init, outcome)) + "\n")
                     self.returncode = 1 if task_id == owner.fail_task else 0
                 return self.returncode
 
@@ -230,6 +240,28 @@ class LiberoParallelTest(unittest.TestCase):
             self.assertEqual(process.returncode, 0)
         self.assertEqual([model.started for model in models[:2]], [0, 0])
         self.assertEqual(models[2].started, 8)
+
+    def test_ultra_long_smoke_and_formal_use_nine_configs_and_new_environment(self):
+        for trials in (1, 10):
+            processes = SimulatedProcesses()
+            extra = ["--suite", "ultra_long_all"] + (["--trials-per-task", "1"] if trials == 1 else [])
+            with mock.patch("scripts.check_lilo_prompts.check_prompts", return_value=[]), \
+                    self.run_controller(processes, extra) as (result, directory):
+                summary = json.loads((directory / "summary.json").read_text())
+                config = json.loads((directory / "run_config.json").read_text())
+                self.assertEqual(result, 0, summary)
+                self.assertEqual(summary["valid_episodes"], 9 * trials)
+                self.assertEqual(summary["average_progress"], 1)
+                self.assertEqual(summary["selected_workers"], 2)
+                self.assertIsNone(config["seed"])
+                self.assertEqual(len(summary["per_order"]), 3)
+            clients = [p for p in processes.processes if not p.model]
+            self.assertEqual(len(clients), 9)
+            for client in clients:
+                self.assertIn(".venv-lilo", client.command[0])
+                self.assertIn("scripts.eval_lilo", client.command)
+                self.assertNotIn("--seed", client.command)
+                self.assertNotIn("--init-state-id", client.command)
 
     def test_launch_failure_allows_existing_task_to_complete(self):
         processes = SimulatedProcesses()

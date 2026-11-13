@@ -21,12 +21,12 @@ import time
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
-def configure_libero_paths():
+def configure_libero_paths(config_dir=None):
     """Write a project-local config before LIBERO can prompt for dataset paths."""
     benchmark_root = PROJECT_ROOT / "openpi/third_party/libero/libero/libero"
     datasets = PROJECT_ROOT / "data/libero/datasets"
     datasets.mkdir(parents=True, exist_ok=True)
-    config_dir = PROJECT_ROOT / ".venv-libero/libero-config"
+    config_dir = Path(config_dir) if config_dir is not None else PROJECT_ROOT / ".venv-libero/libero-config"
     config_dir.mkdir(parents=True, exist_ok=True)
     paths = {
         "benchmark_root": str(benchmark_root),

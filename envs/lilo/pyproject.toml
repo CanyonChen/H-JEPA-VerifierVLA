@@ -1,0 +1,34 @@
+[project]
+name = "h-jepa-lilo-client"
+version = "0.1.0"
+description = "Pinned Ultra-Long simulation; pi05 runs in the existing model environment"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "libero", "openpi-client",
+    "numpy==1.26.4", "scipy==1.15.3", "pyyaml==6.0.2",
+    "torch==2.2.0+cpu", "torchvision==0.17.0+cpu",
+    "robosuite==1.4.1", "mujoco==3.3.0", "bddl==1.0.1",
+    "robomimic==0.2.0", "easydict==1.9",
+    "numba==0.59.1", "llvmlite==0.42.0",
+    "opencv-python==4.6.0.66", "pillow==10.4.0",
+    "imageio[ffmpeg]==2.37.0", "imageio-ffmpeg==0.6.0",
+    "matplotlib==3.8.4", "gym==0.25.2", "future==0.18.2",
+    "cloudpickle==2.1.0", "websockets==13.1", "pyopengl==3.1.7",
+    "glfw==1.12.0", "pynput==1.7.7",
+]
+
+[tool.uv]
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+required-environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+build-constraint-dependencies = ["setuptools==75.3.0", "hatchling==1.27.0"]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }
+libero = { path = "../../openpi/third_party/libero", editable = true }
+openpi-client = { path = "../../openpi/packages/openpi-client", editable = true }

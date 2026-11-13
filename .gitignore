@@ -44,6 +44,7 @@ runs/
 wandb/
 lightning_logs/
 logs/
+third_party/lilo_vla/configs/libero/
 *.log
 
 # LaTeX build intermediates; keep source PDFs and figures
