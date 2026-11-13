@@ -263,12 +263,16 @@ class LiberoParallelTest(unittest.TestCase):
                 self.assertEqual(summary["average_progress"], 1)
                 self.assertEqual(summary["selected_workers"], 2)
                 self.assertIsNone(config["seed"])
+                self.assertEqual(config["gpu"], 1)
+                self.assertEqual(config["egl_device"], 1)
                 self.assertEqual(len(summary["per_order"]), 3)
+            self.assertEqual(processes.peak_models_by_gpu, {"1": 2})
             clients = [p for p in processes.processes if not p.model]
             self.assertEqual(len(clients), 9)
             for client in clients:
                 self.assertIn(".venv-libero", client.command[0])
                 self.assertIn("scripts.eval_lilo", client.command)
+                self.assertEqual(client.environment["MUJOCO_EGL_DEVICE_ID"], "1")
                 self.assertNotIn("--seed", client.command)
                 self.assertNotIn("--init-state-id", client.command)
 

@@ -340,8 +340,9 @@ def main(argv=None):
                     task_summary = (summarize_lilo if lilo else summarize)(task_rows, args.trials_per_task)
                     if task.client.returncode != 0 or task_summary["status"] != "PASS":
                         run_error = "Task {} incomplete; see {}".format(task.task_id, task.directory / "client.log")
-                    logging.info("Task %d finished with %d successes, %d timeouts, %d valid episodes",
-                                 task.task_id, task_summary["successes"], task_summary["timeouts"], task_summary["valid_episodes"])
+                    logging.info("Task %d finished with %d successes, %d timeouts, %d out-of-order failures, %d valid episodes",
+                                 task.task_id, task_summary["successes"], task_summary["timeouts"],
+                                 task_summary.get("out_of_order_failures", 0), task_summary["valid_episodes"])
                     stop_task(task)
                     running.remove(task)
                 elif task.server.poll() is not None:

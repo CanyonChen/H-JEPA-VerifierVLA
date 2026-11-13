@@ -1,6 +1,6 @@
 # B4：π₀.₅ / LiLo-VLA Ultra-Long
 
-更新日期：2026-11-13。评测器已实现并通过本地协议测试；服务器预检、9 回合 smoke 和 90 回合正式评测尚未执行。本轮先建立单候选 π₀.₅ baseline，后续 π₀.₅＋原版 VeriVLA 沿用同一协议。
+更新日期：2026-11-13。服务器已回传 v2 协议的 9 回合 smoke：0 次成功、1 次超时、8 次乱序终止，AP 为 1.11%，基础设施异常为 0。当前先审计乱序终止记录，再决定正式 90 回合使用的评分协议。后续运行固定为 **GPU 1，最多两组并行**，复用 B3 环境。本轮先建立单候选 π₀.₅ baseline，后续 π₀.₅＋原版 VeriVLA 沿用同一协议。
 
 ## 固定协议
 
@@ -15,7 +15,7 @@
 | 指令 | 按官方 `tasks_and_skills.json` 的 `skills` 逐项用 `, then ` 连接，保留物体编号；不使用 suite 中不完整的短标题/语言描述 |
 | 初始化 | 每回合新建模拟器，调用官方 `make_env()` 的未设 seed reset；不加载 `.pruned_init`。随后执行 B3 的 10 步静置，再建立技能高度基准；静置步数独立记录，不占策略预算 |
 | 预算 | **项目端到端预算**＝200 × 技能数，分别为 1800 / 3200 / 2000 个控制步；不包含 LiLo 运动规划器或恢复模块 |
-| 并行 | 本轮 `--gpus 0 1 --max-workers 2`：GPU 0、1 各一组模型服务＋仿真客户端；同组模型和 EGL 使用同一物理卡，空闲卡领取下一配置，沿用自然 CPU/线程调度 |
+| 并行 | 本轮 `--gpu 1 --egl-device 1 --max-workers 2`：GPU 1 上最多两组模型服务＋仿真客户端，共用任务队列，沿用自然 CPU/线程调度 |
 | 规模 | smoke：9 配置 × 1＝9 回合；正式：9 × 10＝90 回合，分别保存 |
 
 这里复用上游 benchmark 的场景、任务顺序、谓词及 SR/AP 公式。**B3 仿真依赖与静置、完整指令构造、端到端总步数预算和下面的时序监测是本项目适配协议**，不是对论文端到端基线逐位一致的复现。上游声明的环境包含 Python ≥3.10、MuJoCo 3.3.0；本轮按用户要求复用 B3 的 Python 3.8 / MuJoCo 3.2.3，实际版本随结果记录。本地零动作探针发现 Organize Table 的物体会在 reset 后弹起，直接建立 `pickedup` 高度基准会将其误记为提前拾取，因此采用 B3 的 10 步静置后再评分。上游 `vla_horizon=200` 是 LiLo 单技能交互上限；不能把本项目的 200×技能数称为上游原始端到端预算。论文数字只作有协议差异的参考。
@@ -39,6 +39,31 @@
 
 指标依据：[官方复现说明](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/docs/REPRODUCTION.md)、[技能定义](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/configs/tasks_and_skills.json)。上游历史汇总中的 `metrics.*.success_rate` 可能对应瞬时 BDDL 条件，不能直接作为有序 SR。
 
+### 2026-11-13 smoke 回传与待核查项
+
+[回传汇总](results/pi05_lilo_ultra_long_smoke_v2.json)来自用户粘贴的服务器末尾 JSON；未取得服务器原始产物或 `run_config.json`，因此尚未核验该次仓库提交、逐步记录与视频。
+
+| 项目 | 回传结果 |
+| --- | --- |
+| 完整性 | 9/9 有效回合，0 基础设施异常、0 中断；`PASS` 仅表示执行和记录完整 |
+| v2 指标 | SR 0/9＝0%，Wilson 95% 区间 0%–29.91%；AP 1.11% |
+| 终止原因 | 8 次 `out_of_order`；task 2 超时，完成 1/10 技能；其余配置完成 0 技能 |
+| 步数 | 乱序回合在 59–113 步结束；task 2 执行 2000 步；合计 2627 步、529 次策略请求 |
+| 实际资源 | `gpus: [1]`、`selected_workers: 1`；显存采样峰值约 9.91 GiB，耗时约 35 分 24 秒 |
+
+代码核对确认，固定版本的[上游 LiLo 技能执行器](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/lilo_vla/core/pipeline.py#L949)检查当前技能；本项目 v2 额外监测未来技能并在乱序时立即终止。这是协议差异，不能据此认定这 8 回合都是策略操作错误，也不能仅因成功率低就放宽规则。上游执行器属于 LiLo 方法，本次并未复现其规划与恢复模块。
+
+下一步从已有产物提取期望技能、触发终止的未来技能及谓词真值，再结合视频定位原因。以下诊断仅读取文件、不启动模型或仿真、不占 GPU、不修改结果：
+
+```bash
+cd ~/canyon43079/H-JEPA-VerifierVLA
+git pull --ff-only origin main
+env -u PYTHONPATH .venv-libero/bin/python -m scripts.inspect_lilo_run \
+  --run-dir outputs/pi05_lilo_parallel/pi05_ultra_long_all_gpu1_unseeded_20261113T081550_589909Z
+```
+
+回传输出 JSON。脚本使用运行当时保存的技能定义，索引从 0 开始；`previous_logged_value` 是上一个控制步的记录，技能切换时的内部高度基准重设可能使它与监测器内部前值不同。`inspection_status: COMPLETE` 仅表示所需记录读取完成，不表示评分逻辑已验证。v2 结果保留，正式 90 回合尚未运行。
+
 ## 服务器执行
 
 ### 1. 更新与环境预检
@@ -48,28 +73,28 @@
 ```bash
 cd ~/canyon43079/H-JEPA-VerifierVLA
 git pull --ff-only origin main
-bash scripts/run_lilo_check.sh --egl-devices 0 1
+bash scripts/run_lilo_check.sh --egl-device 1
 ```
 
-脚本直接调用现有 `.venv-libero/bin/python`，将九个配置的预检依次分配到 EGL 0、1；逐配置创建环境、绑定全部技能谓词、检查两路相机并保存预检图片。最后应输出 `status: PASS`、`egl_devices: [0, 1]`、9 条 task 报告及 NVIDIA 的 OpenGL vendor/renderer。产物位于 `outputs/lilo_check/run_*/`。此处只有环境检查，没有策略成绩。旧 `setup_lilo_env.sh` 入口也仅转到该预检，不再执行安装。
+脚本直接调用现有 `.venv-libero/bin/python`，在 EGL 1 上依次检查九个配置；逐配置创建环境、绑定全部技能谓词、检查两路相机并保存预检图片。最后应输出 `status: PASS`、`egl_devices: [1]`、9 条 task 报告及 NVIDIA 的 OpenGL vendor/renderer。产物位于 `outputs/lilo_check/run_*/`。此处只有环境检查，没有策略成绩。旧 `setup_lilo_env.sh` 入口也仅转到该预检，不再执行安装。
 
-### 2. 九回合 smoke
+### 2. 九回合 smoke（核查后需要重跑时）
 
 ```bash
 bash scripts/run_lilo_baseline.sh \
-  --gpus 0 1 --max-workers 2 \
+  --gpu 1 --egl-device 1 --max-workers 2 \
   --trials-per-task 1
 ```
 
 调度器先用实际 π₀.₅ tokenizer 检查完整指令，再启动现有模型服务并复用缓存权重。模型服务会执行原有的 checkpoint 内容指纹与 warmup 检查。期望结束报告 `planned_episodes: 9`、`valid_episodes: 9`、`infrastructure_errors: 0`，并有 SR/AP。先回传预检和 smoke 的末尾 JSON；根据逐步记录和视频核对评分后再开始正式评测。
 
-`--gpus 0 1` 将并行数限制为每卡至多一组，即使 `--max-workers` 更大也不会把多个组放到同一卡。模型进程设置各自的 `CUDA_VISIBLE_DEVICES`；仿真进程使用对应的 `MUJOCO_EGL_DEVICE_ID`。任务从统一队列领取，因此仍是总计 9 回合，不会在两张卡上重复跑完整 suite。原有单卡用法 `--gpu 1 --egl-device 1 --max-workers 2` 继续可用。
+两组模型进程均设置 `CUDA_VISIBLE_DEVICES=1`，仿真进程均使用 `MUJOCO_EGL_DEVICE_ID=1`，最多同时执行两个配置，完成一组后领取下一配置，总计仍为 9 回合。这里用单数 `--gpu 1`；复数 `--gpus 1` 属于每卡至多一组的模式，会把并行数限制为 1。现有调度器默认也是 GPU 1、EGL 1、最多两组，命令显式写出以避免混淆。
 
-### 3. 九十回合正式评测
+### 3. 九十回合正式评测（完成评分核查后）
 
 ```bash
 bash scripts/run_lilo_baseline.sh \
-  --gpus 0 1 --max-workers 2 \
+  --gpu 1 --egl-device 1 --max-workers 2 \
   --trials-per-task 10
 ```
 
@@ -81,7 +106,7 @@ bash scripts/run_lilo_baseline.sh \
 
 ```bash
 bash scripts/run_lilo_baseline.sh \
-  --gpus 0 1 --max-workers 2 --trials-per-task 10 \
+  --gpu 1 --egl-device 1 --max-workers 2 --trials-per-task 10 \
   --resume-from outputs/pi05_lilo_parallel/<原运行目录名>
 ```
 
@@ -89,8 +114,8 @@ bash scripts/run_lilo_baseline.sh \
 
 ## 产物与验证边界
 
-本轮双卡运行位于 `outputs/pi05_lilo_parallel/pi05_ultra_long_all_gpu0-1_unseeded_*/`，包含 `run_config.json`、`summary.json`、合并的 `episodes.jsonl`、GPU 日志，以及各 task 的服务和客户端日志。`task_devices` 记录任务实际分配的模型卡和 EGL 卡，`gpu.csv` 按卡记录；`sampled_peak_vram_gib_by_gpu` 是各卡峰值，`sampled_peak_vram_gib` 是各次采样中两卡显存总和的峰值。每回合保存初始模拟器状态、双相机视频、各次策略请求的完整观测、动作块及已执行步数、逐步技能真值与事件、最终 `result.json`。checkpoint 内容指纹、服务 ID 和请求编号沿用 B3 实现。
+本轮单卡运行位于 `outputs/pi05_lilo_parallel/pi05_ultra_long_all_gpu1_unseeded_*/`，包含 `run_config.json`、`summary.json`、合并的 `episodes.jsonl`、GPU 日志，以及各 task 的服务和客户端日志。`task_devices` 记录任务实际分配的模型卡和 EGL 卡，`gpu.csv` 按卡记录；`sampled_peak_vram_gib_by_gpu` 是各卡峰值，本轮仅 GPU 1，`sampled_peak_vram_gib` 对应该卡的总占用采样峰值。每回合保存初始模拟器状态、双相机视频、各次策略请求的完整观测、动作块及已执行步数、逐步技能真值与事件、最终 `result.json`。checkpoint 内容指纹、服务 ID 和请求编号沿用 B3 实现。
 
-本地已验证：上游 8 个导入文件的 Git blob 哈希全部匹配固定提交；9 配置的数量、技能映射和完整指令；三种场景实际创建、64×64 离屏渲染及九配置全部谓词绑定；15 个 B4 CPU 协议/rollout/预检测试；17 个并行调度测试（Windows 跳过 1 个 POSIX 端口测试），覆盖双卡每卡一组、空闲卡继续领取任务、smoke/正式回合不重复及原有恢复流程。完整指令实测为 88 / 156 / 97 tokens，各顺序长度相同，低于当前 `pi05_libero` 的 200-token 上限；该配置 `discrete_state_input=False`。
+本地已验证：上游 8 个导入文件的 Git blob 哈希全部匹配固定提交；9 配置的数量、技能映射和完整指令；三种场景实际创建、64×64 离屏渲染及九配置全部谓词绑定；18 个 B4 CPU 协议/rollout/预检/只读诊断测试；17 个并行调度测试（Windows 跳过 1 个 POSIX 端口测试），覆盖 GPU 1 两组并行、双卡每卡一组、空闲卡继续领取任务、smoke/正式回合不重复及原有恢复流程。完整指令实测为 88 / 156 / 97 tokens，各顺序长度相同，低于当前 `pi05_libero` 的 200-token 上限；该配置 `discrete_state_input=False`。
 
-本地场景检查使用已有 Windows Python 3.8 / MuJoCo 3.2.3 验证环境；三类场景均通过 10 步静置＋5 步固定动作兼容探针，该探针不使用 π₀.₅ 策略。`reset_sim_state.npy` 保存静置前状态，`initial_sim_state.npy` 保存静置后、首次策略请求前的状态。Linux H100 双卡 EGL 与真实 π₀.₅ 闭环以服务器回传为准；目前没有 B4 成功率结果。LiLo 谓词补丁仅在 B4 客户端进程内导入，不改写共享 LIBERO 源文件；B3 的入口与归档 459/500 结果保留。
+本地场景检查使用已有 Windows Python 3.8 / MuJoCo 3.2.3 验证环境；三类场景均通过 10 步静置＋5 步固定动作兼容探针，该探针不使用 π₀.₅ 策略。`reset_sim_state.npy` 保存静置前状态，`initial_sim_state.npy` 保存静置后、首次策略请求前的状态。服务器已回传 GPU 1 单 worker 的九回合结果，原始轨迹与视频待核查；本轮尚无 GPU 1 双 worker 的实测吞吐结果。LiLo 谓词补丁仅在 B4 客户端进程内导入，不改写共享 LIBERO 源文件；B3 的入口与归档 459/500 结果保留。
