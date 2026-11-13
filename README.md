@@ -8,7 +8,7 @@
 
 截至 2026-11-12，统一 uv 模型环境、CPU/GPU 兼容性、官方 π₀.₅-LIBERO 检查点推理和 H100 NVIDIA EGL 均已通过服务器检查。LIBERO-Long 正式评测已回传 500 个有效 episode，459 次成功、41 次超时，成功率 **91.8%**，基础设施异常为 0。结果由首段 290 回合与恢复段 210 回合合并。已完成运行使用 3 组并行，运行结束后默认配置改为 2 组。原始视频与逐回合记录待拉取复核。[评测记录](docs/libero_baseline.md)、[回传汇总](docs/results/pi05_libero_long_seed7.json)
 
-2026-11-13，B4 调整为 **LiLo-VLA Ultra-Long**：3 个场景、每场景 3 种技能顺序，共 9 个配置，正式每配置 10 次，报告成功率 SR 与平均进度 AP。复用 B3 的模型环境 `.venv`、仿真环境 `.venv-libero` 与权重；仅使用 **GPU 1，最多两组模型＋仿真进程并行**。九回合 v2 smoke 为 0/9、AP 1.11%；后续独立三回合现场诊断为 0/3、AP 0，均无基础设施异常。现场证据支持保留 v2 并接受低分，本轮行为诊断结束；只读核对回传中一处按任务计数不一致后，进入正式 90 回合，当前尚未启动。原 Spatial、Object、Goal 三套评测后置。先建立 π₀.₅ baseline，再以相同协议评测 π₀.₅＋原版 VeriVLA。[B4 运行指令与协议](docs/lilo_baseline.md)、[smoke 回传汇总](docs/results/pi05_lilo_ultra_long_smoke_v2.json)、[现场诊断归档](docs/results/pi05_lilo_live_diagnostic_v2.json)
+2026-11-13，B4 调整为 **LiLo-VLA Ultra-Long**：3 个场景、每场景 3 种技能顺序，共 9 个配置，正式每配置 10 次，报告成功率 SR 与平均进度 AP。复用 B3 的模型环境 `.venv`、仿真环境 `.venv-libero` 与权重；仅使用 **GPU 1，最多两组模型＋仿真进程并行**。九回合 v2 smoke 为 0/9、AP 1.11%；独立三回合现场诊断为 0/3、AP 0，均无基础设施异常，行为诊断已结束并保留 v2。正式首段已回传 **32/90 个有效回合**（0 成功、6 超时、26 乱序失败），另有 1 个基础设施异常、57 个未尝试，正式 SR/AP 保持 `null`。当前先只读提取具体异常，处理后保留 32 个有效回合、补齐剩余 58 个。原 Spatial、Object、Goal 三套评测后置；原版 VeriVLA 对照尚未开始。[B4 运行指令与协议](docs/lilo_baseline.md)、[正式首段片段归档](docs/results/pi05_lilo_formal_segment1_partial.json)、[现场诊断归档](docs/results/pi05_lilo_live_diagnostic_v2.json)
 
 - `openpi/` 导入自上游提交 `215abfb217dbac7d5f1273282331b9b1866c0479`，作为本仓库的普通源码目录管理。
 - `openpi/third_party/` 包含 ALOHA 与 LIBERO 的完整源码，导入版本分别为 `d1dc83afd89ded4379851257fe5d85632d31d5ec`、`f78abd68ee283de9f9be3c8f7e2a9ad60246e95c`。三者内部的 Git 元数据已移除。

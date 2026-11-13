@@ -1,14 +1,49 @@
 """Saved-trace inspection must preserve experiment results and frozen skill names."""
 
 import json
+import contextlib
+import io
 from pathlib import Path
 import tempfile
 import unittest
 
-from scripts.inspect_lilo_run import check_summary_counts, compact_report, inspect_run
+from scripts.inspect_lilo_run import check_summary_counts, compact_report, inspect_run, main
 
 
 class LiloInspectionTest(unittest.TestCase):
+    def test_error_mode_preserves_exception_and_filters_ordinary_task_failures(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            directory = self.fixture(root)
+            task_dir = directory.parents[3]
+            (task_dir / "client.log").write_text("".join("client line {}\n".format(i) for i in range(100)), encoding="utf-8")
+            (task_dir / "server.log").write_text("model still alive\n", encoding="utf-8")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                main(["--run-dir", str(root), "--errors-only"])
+            self.assertEqual(json.loads(output.getvalue())["episodes"], [])
+            path = root / "episodes.jsonl"
+            failed = json.loads(path.read_text(encoding="utf-8"))
+            failed.update(outcome="infrastructure_error", stage="policy_inference", error="TimeoutError: recorded test failure")
+            path.write_text(json.dumps(failed) + "\n", encoding="utf-8")
+            summary_path = root / "summary.json"
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            summary.update(status="INCOMPLETE", run_error="Task 0 incomplete")
+            summary_path.write_text(json.dumps(summary), encoding="utf-8")
+            before = {p: p.read_bytes() for p in root.rglob("*") if p.is_file()}
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                main(["--run-dir", str(root), "--errors-only"])
+            report = json.loads(output.getvalue())
+            self.assertEqual(before, {p: p.read_bytes() for p in root.rglob("*") if p.is_file()})
+        self.assertEqual(report["reported_summary"]["run_error"], "Task 0 incomplete")
+        episode, = report["episodes"]
+        self.assertEqual(episode["stage"], "policy_inference")
+        self.assertEqual(episode["error"], "TimeoutError: recorded test failure")
+        self.assertEqual(len(episode["log_tails"]["client.log"]["tail"].splitlines()), 70)
+        self.assertTrue(episode["log_tails"]["client.log"]["tail"].startswith("client line 30\n"))
+        self.assertEqual(episode["log_tails"]["server.log"]["tail"], "model still alive\n")
+
     def test_summary_check_detects_swapped_task_counts_and_missing_task_entries(self):
         rows = [dict(task_id=task, policy_steps=steps) for task, steps in ((0, 60), (1, 3200), (8, 102))]
         summary = dict(recorded_episodes=3, policy_steps=3362,

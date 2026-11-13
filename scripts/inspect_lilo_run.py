@@ -1,6 +1,7 @@
 """Print a read-only audit of saved Ultra-Long skill failures; no GPU is used."""
 
 import argparse
+from collections import deque
 import json
 from pathlib import Path
 
@@ -43,7 +44,7 @@ def inspect_episode(run_dir, row):
     errors = []
     report = {key: row.get(key) for key in (
         "task_id", "trial_id", "task_name", "outcome", "policy_steps", "max_policy_steps",
-        "skills_completed", "total_skills", "out_of_order_skill_index")}
+        "skills_completed", "total_skills", "out_of_order_skill_index", "stage", "error")}
     report["inspection_errors"] = errors
     if not row.get("artifacts"):
         errors.append("Episode row has no artifacts path")
@@ -140,8 +141,9 @@ def inspect_run(run_dir):
         run_dir=str(run_dir),
         parallel_config={key: config.get(key) for key in ("gpu", "gpus", "egl_device", "max_workers", "selected_workers")},
         reported_summary={key: summary.get(key) for key in (
-            "status", "protocol", "valid_episodes", "successes", "timeouts", "out_of_order_failures",
-            "infrastructure_errors", "success_rate", "average_progress")},
+            "status", "protocol", "planned_episodes", "recorded_episodes", "unattempted_episodes",
+            "valid_episodes", "successes", "timeouts", "out_of_order_failures", "infrastructure_errors",
+            "interrupted_episodes", "success_rate", "average_progress", "run_error")},
         inspection_errors=errors, episodes=episodes)
 
 
@@ -150,7 +152,8 @@ def compact_report(report):
     compact["episodes"] = []
     for row in report["episodes"]:
         event = row.get("out_of_order_event") or {}
-        item = {key: row[key] for key in ("task_id", "trial_id", "outcome", "policy_steps", "skills_completed", "inspection_errors")}
+        item = {key: row[key] for key in ("task_id", "trial_id", "outcome", "policy_steps", "skills_completed",
+                                         "stage", "error", "inspection_errors")}
         item["expected"] = (event.get("expected") or row.get("next_skill") or {}).get("instruction")
         item["triggered"] = (event.get("triggered") or {}).get("instruction")
         item["live_physics"] = row.get("live_physics")
@@ -164,13 +167,34 @@ def compact_report(report):
     return compact
 
 
+def error_report(report):
+    failed = [row for row in report["episodes"] if row["outcome"] in ("infrastructure_error", "interrupted")]
+    result = compact_report(dict(report, episodes=failed))
+    for source, item in zip(failed, result["episodes"]):
+        item["log_tails"] = {}
+        if not source.get("artifacts"):
+            continue
+        task_dir = Path(source["artifacts"]).parents[3]
+        for name, lines in (("client.log", 70), ("server.log", 40)):
+            path = task_dir / name
+            try:
+                with path.open(encoding="utf-8", errors="replace") as stream:
+                    tail = "".join(deque(stream, maxlen=lines))
+                item["log_tails"][name] = dict(path=str(path), tail=tail)
+            except OSError as error:
+                item["log_tails"][name] = dict(path=str(path), read_error=str(error))
+    return result
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-dir", type=Path, required=True)
     parser.add_argument("--compact", action="store_true", help="Print skill names and live physics without full prompts or paths.")
+    parser.add_argument("--errors-only", action="store_true", help="Print infrastructure/interruption errors and bounded client/server log tails.")
     args = parser.parse_args(argv)
     report = inspect_run(args.run_dir)
-    print(json.dumps(compact_report(report) if args.compact else report, ensure_ascii=False, indent=2, allow_nan=False))
+    output = error_report(report) if args.errors_only else compact_report(report) if args.compact else report
+    print(json.dumps(output, ensure_ascii=False, indent=2, allow_nan=False))
     return 0 if report["inspection_status"] == "COMPLETE" else 1
 
 
