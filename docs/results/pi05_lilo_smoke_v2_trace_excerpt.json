@@ -1,0 +1,84 @@
+{
+  "source": "User-pasted inspection output; task 4 onward contains spliced or missing text.",
+  "scope": "Partial trace evidence, not a new evaluation or a complete nine-episode inspection archive.",
+  "source_run_dir": "/home/jovyan/canyon43079/H-JEPA-VerifierVLA/outputs/pi05_lilo_parallel/pi05_ultra_long_all_gpu1_unseeded_20261113T081550_589909Z",
+  "reported_inspection_status": "COMPLETE",
+  "protocol": "pi05_lilo_ordered_v2",
+  "client_repo_commit_in_complete_entries": "c8acc5117c9c6d866367623a6fd7373272819201",
+  "omitted_task_ids": [
+    4,
+    5,
+    6,
+    7
+  ],
+  "complete_entries": [
+    {
+      "task_id": 0,
+      "trial_id": 0,
+      "outcome": "out_of_order",
+      "policy_steps": 59,
+      "skills_completed": 0,
+      "total_skills": 9,
+      "expected_index": 0,
+      "expected": "pick black bowl 1",
+      "triggered_index": 4,
+      "triggered": "pick black bowl 3",
+      "previous_logged_value": false,
+      "current_value": true
+    },
+    {
+      "task_id": 1,
+      "trial_id": 0,
+      "outcome": "out_of_order",
+      "policy_steps": 80,
+      "skills_completed": 0,
+      "total_skills": 16,
+      "expected_index": 0,
+      "expected": "pick tomato sauce 1",
+      "triggered_index": 10,
+      "triggered": "pick cream cheese 2",
+      "previous_logged_value": false,
+      "current_value": true
+    },
+    {
+      "task_id": 2,
+      "trial_id": 0,
+      "outcome": "timeout",
+      "policy_steps": 2000,
+      "skills_completed": 1,
+      "total_skills": 10,
+      "expected_index": 1,
+      "expected": "pick moka pot 1",
+      "triggered_index": null,
+      "triggered": null
+    },
+    {
+      "task_id": 3,
+      "trial_id": 0,
+      "outcome": "out_of_order",
+      "policy_steps": 59,
+      "skills_completed": 0,
+      "total_skills": 9,
+      "expected_index": 0,
+      "expected": "pick cream cheese 1",
+      "triggered_index": 4,
+      "triggered": "pick black bowl 3",
+      "previous_logged_value": false,
+      "current_value": true
+    },
+    {
+      "task_id": 8,
+      "trial_id": 0,
+      "outcome": "out_of_order",
+      "policy_steps": 103,
+      "skills_completed": 0,
+      "total_skills": 10,
+      "expected_index": 0,
+      "expected": "pick black bowl 1",
+      "triggered_index": 2,
+      "triggered": "turn on the stove 1",
+      "previous_logged_value": false,
+      "current_value": true
+    }
+  ]
+}
