@@ -8,7 +8,7 @@
 
 截至 2026-11-12，统一 uv 模型环境、CPU/GPU 兼容性、官方 π₀.₅-LIBERO 检查点推理和 H100 NVIDIA EGL 均已通过服务器检查。LIBERO-Long 正式评测已回传 500 个有效 episode，459 次成功、41 次超时，成功率 **91.8%**，基础设施异常为 0。结果由首段 290 回合与恢复段 210 回合合并。已完成运行使用 3 组并行，运行结束后默认配置改为 2 组。原始视频与逐回合记录待拉取复核。[评测记录](docs/libero_baseline.md)、[回传汇总](docs/results/pi05_libero_long_seed7.json)
 
-2026-11-13，B4 调整为 **LiLo-VLA Ultra-Long**：3 个场景、每场景 3 种技能顺序，共 9 个配置，正式每配置 10 次，报告成功率 SR 与平均进度 AP。复用 B3 的模型环境 `.venv`、仿真环境 `.venv-libero` 与权重；仅使用 **GPU 1，最多两组模型＋仿真进程并行**。九回合 v2 smoke 为 0/9、AP 1.11%；独立三回合现场诊断为 0/3、AP 0，均无基础设施异常，行为诊断已结束并保留 v2。正式首段已回传 **32/90 个有效回合**（0 成功、6 超时、26 乱序失败），另有 1 个基础设施异常、57 个未尝试，正式 SR/AP 保持 `null`。异常已定位为 task 2 第 3 回合的 WebSocket 心跳断连；已完成传输层修复和本地通信回归，下一步保留 32 个有效回合、恢复剩余 58 个，服务器恢复结果尚未回传。原 Spatial、Object、Goal 三套评测后置；原版 VeriVLA 对照尚未开始。[B4 运行指令与协议](docs/lilo_baseline.md)、[正式首段片段归档](docs/results/pi05_lilo_formal_segment1_partial.json)、[异常读档归档](docs/results/pi05_lilo_formal_segment1_error.json)
+2026-11-13，B4 的 **LiLo-VLA Ultra-Long 单候选基线已完成**：全部 9 个配置各 10 回合，共 90 个有效回合，**SR 0/90＝0%，AP 1.6049%**；76 次乱序失败、14 次任务超时，最终合并集无基础设施异常或未尝试回合。运行复用 B3 的 `.venv`、`.venv-libero` 与权重，固定 `pi05_lilo_ordered_v2`，仅 **GPU 1、最多两组并行**。保留首段 32 个有效回合，心跳修复后补齐 58 个；旧故障记录独立保留。回传汇总已本地核对，原始逐回合产物和视频尚未下载复核。下一步 B5 核实原版 VeriVLA 权重及评分接口，开展相同协议下的长程对照；VeriVLA 尚未参与本轮结果。[B4 结果与协议](docs/lilo_baseline.md)、[90 回合完整汇总](docs/results/pi05_lilo_ultra_long_formal_v2.json)
 
 - `openpi/` 导入自上游提交 `215abfb217dbac7d5f1273282331b9b1866c0479`，作为本仓库的普通源码目录管理。
 - `openpi/third_party/` 包含 ALOHA 与 LIBERO 的完整源码，导入版本分别为 `d1dc83afd89ded4379851257fe5d85632d31d5ec`、`f78abd68ee283de9f9be3c8f7e2a9ad60246e95c`。三者内部的 Git 元数据已移除。
@@ -98,7 +98,7 @@ CUDA_VISIBLE_DEVICES=1 bash scripts/run_pi05_checkpoint.sh
 
 ## 实验路线
 
-1. 保留已完成的 π₀.₅-LIBERO-Long 结果，B4 接入 LiLo-VLA Ultra-Long 并建立单候选 baseline。
+1. 冻结已完成的 π₀.₅ 单候选基线：LIBERO-Long 为 459/500、91.8%；LiLo-VLA Ultra-Long 为 0/90、AP 1.6049%。
 2. 接通原版 VeriVLA，在相同 benchmark 和执行协议下比较 π₀.₅ 与 π₀.₅＋VeriVLA 的长程表现。
 3. 在相同环境状态与固定候选集合下，诊断单个动作块的进度排序与后续任务成功率排序。
 4. 建立单层长期评分基线，再加入 H-JEPA 启发的多时间尺度预测表示。
