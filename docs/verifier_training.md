@@ -131,6 +131,10 @@ env -u PYTHONPATH .venv-robometer/bin/python -B -m scripts.label_verifier_long_p
 
 安装脚本使用独立的 `.venv-robometer`，Python 3.10、Torch 2.8.0／CUDA 12.6、Transformers 4.57.2，并安装推理适配器所需依赖及固定版本官方模型类。首次运行会下载 Robometer 权重与 Qwen 处理器。基线采集与 CPU 数据整理继续使用 B3 的既有环境。[固定推理依赖](../envs/robometer/requirements.txt)、[上游依赖声明](https://github.com/robometer/robometer/blob/352d160389daa964788de1ec933d1925f3a6de4f/pyproject.toml)
 
+2026-11-17 首次服务器安装已创建 Python 3.10.22 环境，随后在下载 `nvidia-nvjitlink-cu12==12.6.85` 时连接 `pypi.nvidia.com` 超时。原脚本将 PyTorch 源设为整条依赖链的索引，该源的 NVIDIA 包链接指向上述域名。现已使用 `--torch-backend cu126` 指定 PyTorch 后端，并让 NVIDIA 依赖从 PyPI 解析。环境创建增加 `--no-project`，避免套用根项目的 Python 3.11 约束。重新执行上述命令会复用已创建的 `.venv-robometer` 和 uv 下载缓存。[uv 后端选择](https://docs.astral.sh/uv/guides/integration/pytorch/#automatic-backend-selection)、[同版 NVIDIA 包](https://pypi.org/project/nvidia-nvjitlink-cu12/12.6.85/)
+
+修复已在本地完成 Python 3.10／Linux x86_64 的 28 项依赖解析，核对全部 NVIDIA 依赖的来源为 PyPI。此前 CPU 模型接口检查覆盖了前向与重载，Linux CUDA 依赖的服务器下载和安装需在本次重试中继续验证。
+
 每回合输出 `progress.json`、`window_labels.jsonl`、`progress.png` 与汇总，记录源视频及索引哈希、上下文帧编号、软件与模型版本。完整回合输出统一发布，中断后同一命令会复用已完成的回合。汇总中的 `COMPLETE` 表示打标文件生成完成，`label_quality_status=REVIEW_REQUIRED` 表示需要结合曲线和视频检查语义质量。耗时字段覆盖模型加载后的本轮工作，显存字段为当前进程的 PyTorch 分配／保留峰值。
 
 回传最后的 JSON，重点查看四回合的首末进度、成功／超时之间的差异、负增量与接近零增量比例，以及显存和耗时。进度头允许表达停滞与退步。试打标结果回传后再确定全量标签配置。

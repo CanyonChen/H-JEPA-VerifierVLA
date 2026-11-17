@@ -6,11 +6,12 @@ cd "$project_root"
 python_path="$project_root/.venv-robometer/bin/python"
 
 if [[ ! -x "$python_path" ]]; then
-    UV_PYTHON_DOWNLOADS=automatic uv venv --python 3.10 "$project_root/.venv-robometer"
+    UV_PYTHON_DOWNLOADS=automatic uv venv --no-project --python 3.10 "$project_root/.venv-robometer"
 fi
 env -u PYTHONPATH "$python_path" -I -c 'import sys; assert sys.version_info[:2] == (3, 10), sys.version'
+# Route PyTorch packages to cu126 and resolve NVIDIA dependencies from PyPI.
 env -u PYTHONPATH UV_HTTP_TIMEOUT=600 UV_CONCURRENT_DOWNLOADS=4 \
-    uv pip install --python "$python_path" --index-url https://download.pytorch.org/whl/cu126 \
+    uv pip install --no-config --python "$python_path" --torch-backend cu126 --index-url https://pypi.org/simple \
     torch==2.8.0 torchvision==0.23.0
 env -u PYTHONPATH UV_HTTP_TIMEOUT=600 UV_CONCURRENT_DOWNLOADS=4 \
     uv pip install --python "$python_path" --index-url https://pypi.org/simple \

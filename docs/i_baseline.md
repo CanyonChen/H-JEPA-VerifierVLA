@@ -101,6 +101,8 @@ B4 已使用 LiLo-VLA 发布的 Ultra-Long benchmark 评测 π₀.₅-LIBERO 检
 
 **B5 接续范围。** 2026-11-17 确认使用 Long 数据。服务器已完成 500 回合审计及种子 7 的固定划分，训练／验证／测试分别包含 400／50／50 回合、22,213／2,799／2,761 个窗口，290 回合引用旧运行目录。当前 `scripts.label_verifier_long_pilot` 选择两个训练任务各一条成功与一条超时轨迹，使用固定 Robometer-4B 源码、权重和处理器，在 GPU 1 上生成逐控制步进度、窗口增量及曲线。打标独立使用 `.venv-robometer`，数据整理复用 B3 的 `.venv-libero`。服务器试打标结果待回传。[完整命令与配置](verifier_training.md)
 
+首次服务器安装在 NVIDIA wheel 的 `pypi.nvidia.com` 连接超时处停止，Python 3.10.22 环境已创建。`setup_robometer_env.sh` 已改用 `--torch-backend cu126` 配合 PyPI 解析 NVIDIA 依赖，并通过 `uv venv --no-project` 避免根项目版本警告。本地 Linux x86_64／Python 3.10 依赖解析通过，下一步拉取 main 并重跑安装及四回合打标命令。
+
 新的 Long 对照在保留的同一测试初始状态上比较 base 与 verifier。窗口索引保留实际执行的 1–5 步动作及对应目标帧，短前缀附有五位有效子块 mask。Robometer 标签、V-JEPA 2-AC 实际迁移、8D 状态适配、训练加载器中的 mask 处理和训练均待完成。P1 分支机制诊断属于后续阶段。
 
 来源：[官方 benchmark 用法](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/README.md#just-want-the-benchmark)、[suite 注册及 make_env](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/lilo_vla/benchmark/__init__.py)、[复现协议与指标](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/docs/REPRODUCTION.md)。
