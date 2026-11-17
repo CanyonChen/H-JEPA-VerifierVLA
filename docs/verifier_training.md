@@ -1,8 +1,8 @@
-# B5：冻结 π₀.₅，训练 VeriVLA 验证器
+# B5 LIBERO-Long verifier 训练
 
-更新日期：2026-11-13。用户提供了官方资源核查；本轮复核了固定版本 README、空的 Releases 列表、论文相关段落与本地模型实现。**当前没有可直接加载的作者训练好 VeriVLA 权重，后续按官方结构与论文方法自行训练 verifier。** π₀.₅ 策略继续冻结，已完成的 B3/B4 数字作为历史基线保留。新增训练、数据与接口属于本项目复现，不称为作者 checkpoint 的直接测评。
+更新日期为 2026-11-17。按用户本轮确认，**当前 B5 使用 LIBERO-Long（`libero_10`）的 10 个任务、500 个回合，推进数据检查、划分、打标、verifier 训练及闭环对照。** π₀.₅ 与视觉编码器冻结，verifier 基于官方结构和论文方法进行本项目复现。
 
-当前只完成了数据检查工具及本地测试；服务器原始轨迹尚未检查，未打标、未迁移预训练权重、未启动训练。VeriVLA 对照仍未运行。
+数据检查工具及本地测试已完成。Long 原始轨迹的服务器审计结果待回传，数据划分、进度打标、预训练迁移、训练与闭环对照待完成。
 
 ## 已核对的依据与实施边界
 
@@ -21,7 +21,7 @@ Meta 编码器入口默认是视频编码器（3D patch embedding、tubelet 2）
 
 ## 现有轨迹能提供什么
 
-代码依据：[LIBERO 采集](../scripts/eval_libero.py)、[Ultra-Long 采集](../scripts/eval_lilo.py)。下表是记录格式，不是服务器文件已完整的结论。
+下表列出 LIBERO-Long 的采集格式。服务器文件完整性由数据审计确认。[LIBERO 采集](../scripts/eval_libero.py)
 
 | 内容 | 已实现的记录 | 训练含义 |
 | --- | --- | --- |
@@ -33,13 +33,13 @@ Meta 编码器入口默认是视频编码器（3D patch embedding、tubelet 2）
 
 **拟定的首版训练时域。** 一个完整执行前缀为 5 步，分成 `M=5, K=1`。在控制步 t 开始的决策，其输入为当前图像/状态，动作是已执行的前五步，目标图像取视频帧 `t+1 ... t+5`，标签为对应相邻时刻 Robometer 进度差。此为本项目的五步前缀适配，不自动等同于论文完整候选长度。短于五步的尾段先单独计数，训练时需明确 mask 或变长策略，不能填造未执行动作的真值。逐控制步的 Robometer 差分可能过于平坦或嘈杂，先做标签质量检查再冻结训练配置。
 
-**Long 和 Ultra-Long 的覆盖不同。** 现有 Long 为 459 成功、41 超时；Ultra-Long 为 0 成功、76 乱序失败、14 超时，只有 14 个累计按序完成技能。后者主要覆盖早期状态，不能据此声称具备整条技能链的训练覆盖。官方模型使用任务专属查询；只训练 Long 十任务后，不能直接假定新 Ultra-Long 任务/顺序也已学会评分。先用 Long 验证训练链路，Ultra-Long 另行设计覆盖中后段的训练数据与独立测试。
+**Long 数据规模。** 已归档的 500 回合包含 459 次成功、41 次超时，共 137,998 个控制步和 27,773 次策略决策。成功与超时回合均进入数据审计，实际可用的完整五步前缀和短尾段数量以审计输出为准。官方模型使用任务专属查询，当前对应 Long 的 10 个任务。[回传汇总](results/pi05_libero_long_seed7.json)
 
 ## 数据划分先于打标和训练
 
-现有 500 回合已经用于 B3 评测。若将其中任何回合用于训练或选择阈值，原 500 回合全量不能继续作为新 verifier 的独立测试集；同样适用于 Ultra-Long 的 90 回合。保留历史记录；新的公平对照应在未参与训练、标签规则调优、阈值和超参数选择的同一测试集合上报告 base 与 verifier。
+现有 500 回合已经用于 B3 评测。训练前将这批数据划分为互斥的训练、验证和测试集合，分别用于更新参数、选择配置与触发阈值，以及最终评测。新的公平对照在保留的同一测试初始状态集合上报告 base 与 verifier，B3 汇总作为历史基线引用。
 
-划分以完整回合为单位。Long 至少按 `(suite, task_id, init_state_id)` 分组，让相同任务/初始状态的重复 rollout 留在同一集合；时间窗口不能跨集合。恢复引用不是新样本。Ultra-Long 的 `trial_id` 不是固定初始状态 seed，应追踪源回合与保存的初始状态，防止重复状态分流。先核对数据，再固定 split manifest；本轮不自动分配训练/验证/测试比例，也不选择有利的回合。
+划分以完整回合为单位，按 `(suite, task_id, init_state_id)` 分组。相同任务与初始状态的重复 rollout、同一回合的全部时间窗口归入同一集合。恢复运行引用的回合按源身份去重。先核对数据，再将划分比例、随机种子和分组结果固定到 split manifest。
 
 同任务、同子块位置上的排序训练样本，并不要求它们来自同一物理状态；但在这种离线排序上表现好，仍需独立的同状态候选比较或闭环实验检验实际选择能力。
 
@@ -54,20 +54,19 @@ cd ~/canyon43079/H-JEPA-VerifierVLA
 git pull --ff-only origin main &&
 env -u PYTHONPATH .venv-libero/bin/python -B -m scripts.audit_verifier_data \
   --run-dir \
-  outputs/pi05_libero_parallel/pi05_libero_10_gpu1_seed7_20261112T131428_923173Z \
-  outputs/pi05_lilo_formal/pi05_ultra_long_all_gpu1_unseeded_20261113T122040_836162Z
+  outputs/pi05_libero_parallel/pi05_libero_10_gpu1_seed7_20261112T131428_923173Z
 ```
 
-回传最后的 JSON。重点查看各运行的 `checked_episodes`、`episodes_with_errors`、`retained_artifact_episodes`、`verified_totals.full_five_step_prefixes`、`short_prefixes` 和 `per_task`。`audit_status=COMPLETE` 只说明本轮文件与时间线检查通过，不表示进度标签可靠或已经可以训练；帧数对齐也不等于逐像素视觉复核。
+回传最后的 JSON。重点查看 Long 运行的 `checked_episodes`、`episodes_with_errors`、`retained_artifact_episodes`、`verified_totals.full_five_step_prefixes`、`short_prefixes` 和 `per_task`。`audit_status=COMPLETE` 表示文件与时间线检查通过，进度标签质量将在后续打标阶段检验。
 
 本地已在 B3 兼容 Python 3.8 环境通过六项测试，覆盖恢复路径只读、完整/短前缀统计、终止帧缺失、NPZ 缺失、未执行后缀误用、重复回合，以及实际 FFmpeg 帧计数。服务器检查结果待回传。
 
 ## 后续顺序与环境
 
-1. 完成上述数据检查，确定可用回合、完整前缀和短尾段数量。
+1. 完成 Long 500 回合的数据检查，确定可用回合、完整前缀和短尾段数量。
 2. 固定互斥的数据划分，用少量训练侧成功/失败视频检查 Robometer 标签与逐步时间对应；验证侧用于配置选择，测试侧保持独立。
 3. 固定 V-JEPA 2-AC 源码/权重，验证迁移覆盖率与图像、状态、动作语义；新增 8D 状态投影及任务/进度参数。
 4. 使用可求梯度的前向建立小样本训练检查，再训练 verifier；冻结 π₀.₅ 与视觉编码器，保存数据划分、权重来源、配置及训练日志。
-5. 独立验证候选排序，校准双轴触发阈值，最后运行同协议闭环对照；Ultra-Long 数据覆盖和查询适配单列。
+5. 在 Long 的验证集上检查候选排序并校准双轴触发阈值，最后在保留的测试初始状态上运行同协议闭环对照。
 
 **环境约束。** 数据检查继续复用 B3 环境。Robometer 的[官方依赖](https://github.com/robometer/robometer/blob/main/pyproject.toml)要求 Python 3.10、Torch 2.8.0、其 robometer extra 要求 Transformers ≥4.57；当前 π₀.₅ 模型环境为 Python 3.11、Torch 2.7.1、Transformers 4.53.2。因此后续标注应通过独立部署的标注服务或其他经过验证的隔离方式接入，不能直接升级现有 B3/B4 环境。本轮未新建环境、安装依赖或开启训练。后续服务器 GPU 工作仍只使用 GPU 1，资源预算按具体标注/训练配置确定，评测仍最多两组并行。

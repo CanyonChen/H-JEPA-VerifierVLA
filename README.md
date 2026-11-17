@@ -10,7 +10,7 @@
 
 2026-11-13，B4 的 **LiLo-VLA Ultra-Long 单候选基线已完成**：全部 9 个配置各 10 回合，共 90 个有效回合，**SR 0/90＝0%，AP 1.6049%**；76 次乱序失败、14 次任务超时，最终合并集无基础设施异常或未尝试回合。运行复用 B3 的 `.venv`、`.venv-libero` 与权重，固定 `pi05_lilo_ordered_v2`，仅 **GPU 1、最多两组并行**。保留首段 32 个有效回合，心跳修复后补齐 58 个；旧故障记录独立保留。回传汇总已本地核对，原始逐回合产物和视频尚未下载复核。[B4 结果与协议](docs/lilo_baseline.md)、[90 回合完整汇总](docs/results/pi05_lilo_ultra_long_formal_v2.json)
 
-B5 按用户补充的资源核查转为 **冻结 π₀.₅、自行训练 verifier 的项目复现**：官方公开了模型结构，未找到作者训练好验证器权重，训练与集成仍需补齐。当前先用已有 `.venv-libero` 只读检查 Long 500 回合和 Ultra-Long 90 回合；训练前固定独立数据划分，再核对预训练迁移与 Robometer 标签。尚未打标、训练或运行 verifier 对照。[B5 训练准备与检查命令](docs/verifier_training.md)
+2026-11-17，用户确认 B5 当前先使用 **LIBERO-Long 的 10 个任务、500 个回合**，冻结 π₀.₅、自行训练 verifier。先复用 `.venv-libero` 检查这批 Long 轨迹，再固定数据划分、核对预训练迁移与 Robometer 标签，完成训练和 Long 闭环对照。数据检查工具已完成，服务器审计结果及后续训练步骤待完成。[B5 训练准备与检查命令](docs/verifier_training.md)
 
 - `openpi/` 导入自上游提交 `215abfb217dbac7d5f1273282331b9b1866c0479`，作为本仓库的普通源码目录管理。
 - `openpi/third_party/` 包含 ALOHA 与 LIBERO 的完整源码，导入版本分别为 `d1dc83afd89ded4379851257fe5d85632d31d5ec`、`f78abd68ee283de9f9be3c8f7e2a9ad60246e95c`。三者内部的 Git 元数据已移除。
@@ -27,7 +27,7 @@ B5 按用户补充的资源核查转为 **冻结 π₀.₅、自行训练 verifi
 | 十个任务各一个完整 episode、视频与结果记录 | [LIBERO smoke 检查](docs/libero_smoke.md) |
 | 每任务 50 个初始状态、检查点指纹和逐任务统计 | [LIBERO-Long 500 回合评测](docs/libero_baseline.md) |
 | B4：Ultra-Long 环境预检、9 回合 smoke、90 回合 SR/AP | [LiLo-VLA Ultra-Long 运行说明](docs/lilo_baseline.md) |
-| B5：数据复用检查、划分与 verifier 训练准备 | [冻结 π₀.₅，训练 VeriVLA 验证器](docs/verifier_training.md) |
+| B5：Long 数据检查、划分与 verifier 训练准备 | [LIBERO-Long verifier 训练](docs/verifier_training.md) |
 | H-JEPA 中英双语论文 | [H-JEPA.md](H-JEPA/paper-latex/H-JEPA.md) |
 | H-JEPA 代码与运行说明 | [上游代码 README](H-JEPA/repository-main/README.md) |
 | H-JEPA 方法讲解幻灯片 | [deck.html](H-JEPA/repo/deck.html) |

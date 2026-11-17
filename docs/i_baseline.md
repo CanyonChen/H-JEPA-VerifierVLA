@@ -1,11 +1,13 @@
 # 第一阶段：π₀.₅ baseline 复现计划
 
-更新日期：2026-11-13
+更新日期为 2026-11-17。
 
 所属阶段：[总实验计划](plan.md)中的 P0 / baseline_setup。  
 模型环境、CPU/GPU 检查、官方 π₀.₅-LIBERO 检查点与 H100 EGL 均已通过。2026-11-12，服务器在 `~/canyon43079/H-JEPA-VerifierVLA` 完成 B2 的 10/10 成功 smoke，并回传 B3 的 500 个有效 episode，459 次成功、41 次超时，成功率 91.8%，Wilson 95% 区间为 89.06%–93.90%。B3 合并首段 290 回合与恢复段 210 回合，基础设施异常为 0。该次运行使用 3 组并行，运行结束后默认配置改为 2 组。原始产物待拉取复核，B4/B5 按下表继续推进。[B2 汇总](results/pi05_libero_smoke_seed7.json)、[B3 汇总](results/pi05_libero_long_seed7.json)、[B3 记录](libero_baseline.md)
 
 2026-11-13，B4 的 LiLo-VLA Ultra-Long 单候选正式评测已回传全部 90 个有效回合：0 次成功、76 次乱序失败、14 次任务超时，SR 0%、AP 1.6049%。首段有效 32 回合与恢复段新增 58 回合合并；最终合并集基础设施异常为 0，历史心跳故障另行保留。回传汇总已核对，原始视频与逐回合文件尚未下载；下一步为 B5 的 VeriVLA 资源与评分接口交接。[B4 结果](lilo_baseline.md)、[完整汇总](results/pi05_lilo_ultra_long_formal_v2.json)
+
+2026-11-17，用户确认 B5 当前先使用 **LIBERO-Long 的 10 个任务、500 个回合**。下一步复用 `.venv-libero` 检查 Long 原始轨迹，再完成划分、进度标签、verifier 训练与 Long 闭环对照。[当前步骤](verifier_training.md)
 
 资源：八卡 A100/H100 服务器、MuJoCo；Piper 真机用于后续阶段。
 
@@ -54,13 +56,13 @@
 | B2 / pi05_libero_smoke | 运行 `libero_10` 每任务 1 个 episode，共 10 个；检查视频、动作执行和终止逻辑 | 十个任务的闭环记录与视频 | 无未解释的加载、通信或渲染错误；成功与失败均有可追溯记录 | 服务器 10/10 成功；原始视频尚未拉取及逐帧复核 |
 | B3 / pi05_long_baseline | 补齐逐 episode 记录和视频唯一命名；按固定初始化运行 Long 每任务 50 次 | 500 个 episode 的记录、逐任务成功率、Long 总结果 | 预定 episode 全部有有效结果；基础设施异常已单列并处理 | 服务器回传完成，459/500 成功、41 次超时，91.8%。原始产物待拉取复核。[记录](libero_baseline.md) |
 | B4 / pi05_lilo_ultra_long | 接入 LiLo-VLA Ultra-Long 的全部 9 个配置，先运行 π₀.₅ 单候选 baseline；首轮每配置 10 次，共 90 回合 | 逐配置、逐顺序组及整体的 SR/AP，逐回合技能完成记录与视频 | 9 个配置均有完整记录；SR/AP 可从有序技能完成记录重算；初始化、控制预算和模型协议已固定 | 服务器回传完成：90 个有效回合，0 成功、76 乱序失败、14 超时；SR 0%、AP 1.6049%，最终合并集无基础设施异常。原始产物待下载复核。[结果](lilo_baseline.md) |
-| B5 / pi05_verifier_handoff | 冻结 π₀.₅，补齐 verifier 数据划分、标签、预训练迁移、训练和候选评分接口；记录论文方法的项目复现差异 | 数据检查与独立划分、训练配置/权重及评测接口 | 预训练实际加载与梯度通过；验证不泄漏测试数据；在固定基础策略和 benchmark 协议下进行对照 | 官方缺少 trained verifier 权重；本地只读数据检查工具已验证，待服务器回传；尚未训练或运行 verifier 对照。[步骤](verifier_training.md) |
+| B5 / pi05_verifier_handoff | 使用 Long 10 任务的 500 回合，冻结 π₀.₅，补齐 verifier 数据划分、标签、预训练迁移、训练和候选评分接口 | Long 数据检查与独立划分、训练配置/权重及评测接口 | 预训练实际加载与梯度通过，训练与测试独立，在 Long 保留测试初始状态上进行同协议对照 | 数据检查工具已验证，Long 服务器审计结果待回传，后续打标、训练与对照待完成。[步骤](verifier_training.md) |
 
 B3 已在单 GPU 完成参考结果。后续 B4 按用户最新要求仅使用 GPU 1，最多两组模型＋仿真进程并行，共用任务队列；一组完成后领取下一配置，总计仍为 9 回合 smoke 或 90 回合正式评测。参数为 `--gpu 1 --egl-device 1 --max-workers 2`。每项任务的模型卡、EGL 卡、端口、episode 范围和产物均有记录，不涉及分布式训练。
 
 **B4：LiLo-VLA Ultra-Long 评测协议与实施范围。**
 
-本阶段使用 LiLo-VLA 发布的 Ultra-Long benchmark，先评测已有 π₀.₅-LIBERO 检查点。B5 完成接口交接并接通原版 VeriVLA 后，再用相同协议运行 π₀.₅＋VeriVLA 对照。B3 的 459/500 仅属于 LIBERO-Long，两个 benchmark 分别报告。
+B4 已使用 LiLo-VLA 发布的 Ultra-Long benchmark 评测 π₀.₅-LIBERO 检查点，下表记录该轮配置。B3 的 459/500 属于 LIBERO-Long，当前 B5 按上方 2026-11-17 的安排推进 Long 数据与训练。
 
 | 项目 | B4 安排 |
 | --- | --- |
