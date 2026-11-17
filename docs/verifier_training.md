@@ -2,7 +2,7 @@
 
 更新日期为 2026-11-17。按用户本轮确认，**当前 B5 使用 LIBERO-Long（`libero_10`）的 10 个任务、500 个回合，推进数据检查、划分、打标、verifier 训练及闭环对照。** π₀.₅ 与视觉编码器冻结，verifier 基于官方结构和论文方法进行本项目复现。
 
-数据检查工具及本地测试已完成。Long 原始轨迹的服务器审计结果待回传，数据划分、进度打标、预训练迁移、训练与闭环对照待完成。
+2026-11-17，服务器回传 Long 数据审计 `COMPLETE`，500 回合全部检查通过，错误数为 0。确认 27,414 个完整五步前缀和 359 个短前缀。数据划分与窗口索引工具已通过本地测试，下一步在服务器生成固定清单。进度打标、预训练迁移、训练与闭环对照待完成。[服务器审计记录](results/pi05_libero_long_verifier_data_audit.json)
 
 ## 已核对的依据与实施边界
 
@@ -31,23 +31,23 @@ Meta 编码器入口默认是视频编码器（3D patch embedding、tubelet 2）
 | 任务 | NPZ 保存完整 prompt，回合索引保存 task ID | 检查回合内 prompt 一致，并区分不同 suite 的 task ID；不能混用编号 |
 | 恢复 | 最终 `episodes.jsonl` 引用部分旧目录的产物 | 从最终索引读取并去重，保留旧目录；不能递归收集所有历史运行后把保留回合再计一次 |
 
-**拟定的首版训练时域。** 一个完整执行前缀为 5 步，分成 `M=5, K=1`。在控制步 t 开始的决策，其输入为当前图像/状态，动作是已执行的前五步，目标图像取视频帧 `t+1 ... t+5`，标签为对应相邻时刻 Robometer 进度差。此为本项目的五步前缀适配，不自动等同于论文完整候选长度。短于五步的尾段先单独计数，训练时需明确 mask 或变长策略，不能填造未执行动作的真值。逐控制步的 Robometer 差分可能过于平坦或嘈杂，先做标签质量检查再冻结训练配置。
+**首版训练时域。** 一个完整执行前缀为 5 步，分成 `M=5, K=1`。在控制步 t 开始的决策，其输入为当前图像/状态，动作是实际执行的前五步，目标图像取视频帧 `t+1 ... t+5`，标签为对应相邻时刻 Robometer 进度差。短窗口保留实际的 n 步动作、n 个目标帧，并记录长度为 5 的 `valid_subchunk_mask`。训练加载器随后按该 mask 处理填充和损失。逐控制步的 Robometer 差分质量将在打标阶段检验。
 
-**Long 数据规模。** 已归档的 500 回合包含 459 次成功、41 次超时，共 137,998 个控制步和 27,773 次策略决策。成功与超时回合均进入数据审计，实际可用的完整五步前缀和短尾段数量以审计输出为准。官方模型使用任务专属查询，当前对应 Long 的 10 个任务。[回传汇总](results/pi05_libero_long_seed7.json)
+**Long 数据规模。** 500 回合包含 459 次成功、41 次超时，共 137,998 个控制步、27,773 次策略决策与同数量的观测 NPZ，以及 138,498 帧视频。500 回合均通过服务器审计，其中 290 回合的产物引用此前运行目录。执行长度为 1、2、3、4、5 的窗口分别为 83、77、105、94、27,414 个。官方模型使用任务专属查询，当前对应 Long 的 10 个任务。[回传汇总](results/pi05_libero_long_seed7.json)、[数据审计](results/pi05_libero_long_verifier_data_audit.json)
 
 ## 数据划分先于打标和训练
 
 现有 500 回合已经用于 B3 评测。训练前将这批数据划分为互斥的训练、验证和测试集合，分别用于更新参数、选择配置与触发阈值，以及最终评测。新的公平对照在保留的同一测试初始状态集合上报告 base 与 verifier，B3 汇总作为历史基线引用。
 
-划分以完整回合为单位，按 `(suite, task_id, init_state_id)` 分组。相同任务与初始状态的重复 rollout、同一回合的全部时间窗口归入同一集合。恢复运行引用的回合按源身份去重。先核对数据，再将划分比例、随机种子和分组结果固定到 split manifest。
+划分以完整回合为单位，按 `(suite, task_id, init_state_id)` 分组。每个任务的 50 个初始状态按 `libero_10|split_seed|task_id|init_state_id` 的 SHA256 排序，依次分配 40 个训练、5 个验证和 5 个测试回合。默认 `split_seed=7` 专用于数据划分，分组结果独立于轨迹结果和输入索引顺序。同一回合的全部窗口归入同一集合，最终索引中重复的任务与初始状态会被报告为错误。预计全量输出为 400／50／50 回合。
 
 同任务、同子块位置上的排序训练样本，并不要求它们来自同一物理状态；但在这种离线排序上表现好，仍需独立的同状态候选比较或闭环实验检验实际选择能力。
 
-## 当前服务器步骤：只读数据检查
+## 已完成的服务器数据审计
 
 [audit_verifier_data.py](../scripts/audit_verifier_data.py) 使用 NumPy 和已安装的 imageio-ffmpeg，读取最终索引中的每个回合、全部决策 NPZ，并解码核对视频帧数。检查生成/执行长度、连续时间线、8D 状态、7D 动作、图像尺寸、任务指令及重复索引/产物引用。它不加载模型、不生成标签、不修改源文件，也不需要 GPU；每 50 个回合向终端打印进度，最后输出 JSON。
 
-直接复用 B3 的 `.venv-libero`，无需安装或升级依赖：
+服务器已使用 B3 的 `.venv-libero` 完成这一步。需要复查源数据时可使用以下命令。
 
 ```bash
 cd ~/canyon43079/H-JEPA-VerifierVLA
@@ -57,14 +57,41 @@ env -u PYTHONPATH .venv-libero/bin/python -B -m scripts.audit_verifier_data \
   outputs/pi05_libero_parallel/pi05_libero_10_gpu1_seed7_20261112T131428_923173Z
 ```
 
-回传最后的 JSON。重点查看 Long 运行的 `checked_episodes`、`episodes_with_errors`、`retained_artifact_episodes`、`verified_totals.full_five_step_prefixes`、`short_prefixes` 和 `per_task`。`audit_status=COMPLETE` 表示文件与时间线检查通过，进度标签质量将在后续打标阶段检验。
+本轮回传 `checked_episodes=500`、`episodes_with_errors=0`、`retained_artifact_episodes=290`。各任务均检查 50 回合，汇总与逐任务计数已在本地核对。审计覆盖全部决策 NPZ、视频解码帧数和写入约定的时间线，逐像素对齐和进度标签质量需在后续样本检查中确认。[完整回传 JSON](results/pi05_libero_long_verifier_data_audit.json)
 
-本地已在 B3 兼容 Python 3.8 环境通过六项测试，覆盖恢复路径只读、完整/短前缀统计、终止帧缺失、NPZ 缺失、未执行后缀误用、重复回合，以及实际 FFmpeg 帧计数。服务器检查结果待回传。
+审计工具此前已在 B3 兼容 Python 3.8 环境通过六项测试。
+
+## 当前服务器步骤 数据划分与窗口索引
+
+`prepare_verifier_long_data.py` 复用 `.venv-libero`，在 CPU 上读取已审计的最终索引、逐回合结果和决策记录，检查时间线与源路径，并生成固定分组和实际执行窗口。所有输入视频及 NPZ 使用源文件路径引用，290 个恢复回合继续引用原始运行目录。[准备脚本](../scripts/prepare_verifier_long_data.py)
+
+```bash
+cd ~/canyon43079/H-JEPA-VerifierVLA &&
+git pull --ff-only origin main &&
+env -u PYTHONPATH .venv-libero/bin/python -B -m scripts.prepare_verifier_long_data \
+  --run-dir outputs/pi05_libero_parallel/pi05_libero_10_gpu1_seed7_20261112T131428_923173Z \
+  --output-dir outputs/verifier_long/split_seed7 \
+  --split-seed 7
+```
+
+输出目录包含以下文件。
+
+| 文件 | 内容 |
+| --- | --- |
+| `manifest.json` | 来源与脚本哈希、划分方法、逐任务统计、输出索引哈希和数据字段说明 |
+| `train_episodes.jsonl`、`validation_episodes.jsonl`、`test_episodes.jsonl` | 回合身份、任务指令、结果、视频与源产物路径 |
+| `train_windows.jsonl`、`validation_windows.jsonl`、`test_windows.jsonl` | 决策观测、实际执行动作、上下文与目标帧索引、有效子块 mask |
+
+帧索引从 0 开始。控制步 t、执行 n 步的窗口使用上下文帧 t 和目标帧 `t+1..t+n`，动作数组长度为 n，mask 的前 n 位为 true。索引文件准备完成后统一发布，同一输入重跑会复用字节一致的结果。来源或划分种子改变时使用新的输出目录。
+
+回传命令最后的 JSON，核对三组回合数为 400／50／50、总窗口数为 27,773、完整五步窗口数为 27,414、短窗口数为 359。各组具体成功／超时数和窗口数由服务器源记录确定。完整逐任务信息保存在 `manifest.json`。
+
+准备工具已在 Python 3.8 通过五项本地测试，覆盖分组隔离与顺序稳定性、重复／缺失初始状态、恢复路径与短窗口、命令入口及重复运行、写入失败清理与重试。服务器分组结果待回传，随后进入进度标签检查。
 
 ## 后续顺序与环境
 
-1. 完成 Long 500 回合的数据检查，确定可用回合、完整前缀和短尾段数量。
-2. 固定互斥的数据划分，用少量训练侧成功/失败视频检查 Robometer 标签与逐步时间对应；验证侧用于配置选择，测试侧保持独立。
+1. 在服务器运行上述准备命令，固定 Long 的训练、验证和测试清单。
+2. 用少量训练侧成功／超时视频检查 Robometer 标签与逐步时间对应，验证侧用于配置选择，测试侧保持独立。
 3. 固定 V-JEPA 2-AC 源码/权重，验证迁移覆盖率与图像、状态、动作语义；新增 8D 状态投影及任务/进度参数。
 4. 使用可求梯度的前向建立小样本训练检查，再训练 verifier；冻结 π₀.₅ 与视觉编码器，保存数据划分、权重来源、配置及训练日志。
 5. 在 Long 的验证集上检查候选排序并校准双轴触发阈值，最后在保留的测试初始状态上运行同协议闭环对照。

@@ -1,0 +1,172 @@
+{
+  "schema": "verifier_data_audit_v1",
+  "audit_status": "COMPLETE",
+  "scope": "Read-only CPU audit of final episode indices, every decision NPZ and decoded video frame counts.",
+  "training_readiness": "Progress labels and independent train/validation/test groups still required.",
+  "runs": [
+    {
+      "run_dir": "/home/jovyan/canyon43079/H-JEPA-VerifierVLA/outputs/pi05_libero_parallel/pi05_libero_10_gpu1_seed7_20261112T131428_923173Z",
+      "audit_status": "COMPLETE",
+      "errors": [],
+      "episodes_with_errors": 0,
+      "checked_episodes": 500,
+      "retained_artifact_episodes": 290,
+      "per_task": [
+        {
+          "task_id": 0,
+          "indexed_episodes": 50,
+          "checked_episodes": 50,
+          "outcomes": {
+            "success": 48,
+            "timeout": 2
+          },
+          "full_five_step_prefixes": 2860,
+          "short_prefixes": 37
+        },
+        {
+          "task_id": 1,
+          "indexed_episodes": 50,
+          "checked_episodes": 50,
+          "outcomes": {
+            "success": 50
+          },
+          "full_five_step_prefixes": 2532,
+          "short_prefixes": 28
+        },
+        {
+          "task_id": 2,
+          "indexed_episodes": 50,
+          "checked_episodes": 50,
+          "outcomes": {
+            "success": 47,
+            "timeout": 3
+          },
+          "full_five_step_prefixes": 2654,
+          "short_prefixes": 38
+        },
+        {
+          "task_id": 3,
+          "indexed_episodes": 50,
+          "checked_episodes": 50,
+          "outcomes": {
+            "success": 50
+          },
+          "full_five_step_prefixes": 2244,
+          "short_prefixes": 39
+        },
+        {
+          "task_id": 4,
+          "indexed_episodes": 50,
+          "checked_episodes": 50,
+          "outcomes": {
+            "success": 49,
+            "timeout": 1
+          },
+          "full_five_step_prefixes": 2402,
+          "short_prefixes": 44
+        },
+        {
+          "task_id": 5,
+          "indexed_episodes": 50,
+          "checked_episodes": 50,
+          "outcomes": {
+            "success": 49,
+            "timeout": 1
+          },
+          "full_five_step_prefixes": 1932,
+          "short_prefixes": 38
+        },
+        {
+          "task_id": 6,
+          "indexed_episodes": 50,
+          "checked_episodes": 50,
+          "outcomes": {
+            "success": 46,
+            "timeout": 4
+          },
+          "full_five_step_prefixes": 2466,
+          "short_prefixes": 39
+        },
+        {
+          "task_id": 7,
+          "indexed_episodes": 50,
+          "checked_episodes": 50,
+          "outcomes": {
+            "success": 49,
+            "timeout": 1
+          },
+          "full_five_step_prefixes": 2674,
+          "short_prefixes": 42
+        },
+        {
+          "task_id": 8,
+          "indexed_episodes": 50,
+          "checked_episodes": 50,
+          "outcomes": {
+            "success": 26,
+            "timeout": 24
+          },
+          "full_five_step_prefixes": 4641,
+          "short_prefixes": 21
+        },
+        {
+          "task_id": 9,
+          "indexed_episodes": 50,
+          "checked_episodes": 50,
+          "outcomes": {
+            "success": 45,
+            "timeout": 5
+          },
+          "full_five_step_prefixes": 3009,
+          "short_prefixes": 33
+        }
+      ],
+      "suite": "libero_10",
+      "reported_status": "PASS",
+      "indexed_episodes": 500,
+      "planned_episodes": 500,
+      "reported_outcomes": {
+        "success": 459,
+        "timeout": 41
+      },
+      "split_group_key": [
+        "suite",
+        "task_id",
+        "init_state_id"
+      ],
+      "unique_indexed_episode_ids": 500,
+      "verified_totals": {
+        "policy_steps": 137998,
+        "policy_requests": 27773,
+        "video_frames": 138498,
+        "observation_files": 27773,
+        "full_five_step_prefixes": 27414,
+        "short_prefixes": 359,
+        "executed_steps_histogram": {
+          "1": 83,
+          "2": 77,
+          "3": 105,
+          "4": 94,
+          "5": 27414
+        }
+      }
+    }
+  ],
+  "data_contract": {
+    "generated_action_shape": [
+      10,
+      7
+    ],
+    "executed_prefix_limit": 5,
+    "robot_state_shape": [
+      8
+    ],
+    "state_capture": "Decision boundaries only; no per-step or terminal state NPZ.",
+    "video_layout": "448x224 MP4: left external view, right wrist view, already resized/rotated.",
+    "target_frames": "For a decision at step t with n executed actions, video frames t+1..t+n.",
+    "full_prefix_proposal": "Five executed actions split into M=5, K=1; short prefixes need a separate mask policy.",
+    "unexecuted_actions": "Generated actions after executed_steps have no trajectory targets.",
+    "alignment_scope": "Checks writer-contract timeline and frame counts; not pixel-level visual alignment.",
+    "split_status": "No split assigned and no labels or models loaded."
+  }
+}
