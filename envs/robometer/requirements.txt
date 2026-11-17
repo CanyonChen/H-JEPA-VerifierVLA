@@ -1,0 +1,18 @@
+# Runtime dependencies for the project's Robometer-4B inference adapter.
+# Torch 2.8.0 and torchvision 0.23.0 are installed from the CUDA 12.6 index.
+numpy==1.26.4
+transformers==4.57.2
+accelerate==1.11.0
+huggingface-hub==0.36.0
+safetensors==0.6.2
+Pillow==11.3.0
+PyYAML==6.0.3
+einops==0.8.1
+qwen-vl-utils==0.0.14
+codetiming==1.4.0
+loguru==0.7.3
+rich==14.0.0
+wandb==0.22.3
+tensorboard==2.20.0
+matplotlib==3.10.7
+imageio-ffmpeg==0.6.0

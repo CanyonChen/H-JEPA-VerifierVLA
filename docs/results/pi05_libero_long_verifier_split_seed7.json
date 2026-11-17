@@ -1,0 +1,103 @@
+{
+  "schema": "verifier_long_split_v1",
+  "status": "COMPLETE",
+  "suite": "libero_10",
+  "output_dir": "/home/jovyan/canyon43079/H-JEPA-VerifierVLA/outputs/verifier_long/split_seed7",
+  "split_seed": 7,
+  "split_method": "Per-task SHA256 order of libero_10|split_seed|task_id|init_state_id; 40/5/5 groups",
+  "groups_per_task": {
+    "train": 40,
+    "validation": 5,
+    "test": 5
+  },
+  "task_count": 10,
+  "retained_artifact_episodes": 290,
+  "totals": {
+    "episodes": 500,
+    "outcomes": {
+      "success": 459,
+      "timeout": 41
+    },
+    "policy_steps": 137998,
+    "policy_requests": 27773,
+    "full_five_step_prefixes": 27414,
+    "short_prefixes": 359,
+    "executed_steps_histogram": {
+      "1": 83,
+      "2": 77,
+      "3": 105,
+      "4": 94,
+      "5": 27414
+    }
+  },
+  "training_readiness": "Episode splits and window indices prepared; progress labels and model training pending",
+  "manifest": "/home/jovyan/canyon43079/H-JEPA-VerifierVLA/outputs/verifier_long/split_seed7/manifest.json",
+  "splits": {
+    "train": {
+      "files": {
+        "episodes": "train_episodes.jsonl",
+        "windows": "train_windows.jsonl"
+      },
+      "episodes": 400,
+      "outcomes": {
+        "success": 368,
+        "timeout": 32
+      },
+      "policy_steps": 110354,
+      "policy_requests": 22213,
+      "full_five_step_prefixes": 21922,
+      "short_prefixes": 291,
+      "executed_steps_histogram": {
+        "1": 70,
+        "2": 63,
+        "3": 84,
+        "4": 74,
+        "5": 21922
+      }
+    },
+    "validation": {
+      "files": {
+        "episodes": "validation_episodes.jsonl",
+        "windows": "validation_windows.jsonl"
+      },
+      "episodes": 50,
+      "outcomes": {
+        "success": 44,
+        "timeout": 6
+      },
+      "policy_steps": 13923,
+      "policy_requests": 2799,
+      "full_five_step_prefixes": 2768,
+      "short_prefixes": 31,
+      "executed_steps_histogram": {
+        "1": 5,
+        "2": 8,
+        "3": 10,
+        "4": 8,
+        "5": 2768
+      }
+    },
+    "test": {
+      "files": {
+        "episodes": "test_episodes.jsonl",
+        "windows": "test_windows.jsonl"
+      },
+      "episodes": 50,
+      "outcomes": {
+        "success": 47,
+        "timeout": 3
+      },
+      "policy_steps": 13721,
+      "policy_requests": 2761,
+      "full_five_step_prefixes": 2724,
+      "short_prefixes": 37,
+      "executed_steps_histogram": {
+        "1": 8,
+        "2": 6,
+        "3": 11,
+        "4": 12,
+        "5": 2724
+      }
+    }
+  }
+}
