@@ -133,7 +133,38 @@ env -u PYTHONPATH .venv-robometer/bin/python -B -m scripts.label_verifier_long_p
 
 2026-11-17 首次服务器安装已创建 Python 3.10.22 环境，随后在下载 `nvidia-nvjitlink-cu12==12.6.85` 时连接 `pypi.nvidia.com` 超时。原脚本将 PyTorch 源设为整条依赖链的索引，该源的 NVIDIA 包链接指向上述域名。现已使用 `--torch-backend cu126` 指定 PyTorch 后端，并让 NVIDIA 依赖从 PyPI 解析。环境创建增加 `--no-project`，避免套用根项目的 Python 3.11 约束。重新执行上述命令会复用已创建的 `.venv-robometer` 和 uv 下载缓存。[uv 后端选择](https://docs.astral.sh/uv/guides/integration/pytorch/#automatic-backend-selection)、[同版 NVIDIA 包](https://pypi.org/project/nvidia-nvjitlink-cu12/12.6.85/)
 
-修复已在本地完成 Python 3.10／Linux x86_64 的 28 项依赖解析，核对全部 NVIDIA 依赖的来源为 PyPI。此前 CPU 模型接口检查覆盖了前向与重载，Linux CUDA 依赖的服务器下载和安装需在本次重试中继续验证。
+修复已在本地完成 Python 3.10／Linux x86_64 的 28 项依赖解析，核对全部 NVIDIA 依赖的来源为 PyPI。2026-11-18 收到的服务器日志确认安装及导入成功，版本为 Torch 2.8.0+cu126、Transformers 4.57.2。随后下载 Robometer 权重时出现 SSH `client_loop: send disconnect: Connection reset`，日志显示 3.94 GB 分片已完成，4.97 GB 分片最后显示到 95%。该输出尚不能确认服务器进程是否结束、完整权重是否就绪或打标是否完成。
+
+SSH 重连后执行以下恢复命令。已有打标进程时显示其 PID；进程已退出时用 `nohup` 后台启动，并将输出追加到日志文件。命令复用现有环境、Hugging Face 缓存和同一打标目录。完整缓存文件会直接复用，未完成文件的下载由 Hugging Face 客户端按缓存状态恢复。后台运行用于跨 SSH 断线继续工作。
+
+```bash
+(
+  set -e
+  cd ~/canyon43079/H-JEPA-VerifierVLA
+  if pgrep -u "$(id -u)" -af '[p]ython.*-m scripts[.]label_verifier_long_pilot'; then
+    printf '%s\n' 'Existing pilot process found. Check its progress before restarting.'
+    exit 0
+  fi
+  mkdir -p outputs/verifier_long
+  nohup env -u PYTHONPATH .venv-robometer/bin/python -u -B -m scripts.label_verifier_long_pilot \
+    --split-dir outputs/verifier_long/split_seed7 \
+    --output-dir outputs/verifier_long/robometer_pilot_seed7 \
+    --gpu 1 \
+    --batch-size 8 \
+    >> outputs/verifier_long/robometer_pilot_seed7.log 2>&1 < /dev/null &
+  printf 'Started pilot PID %s\n' "$!"
+)
+```
+
+通过新命令启动后，可用下面的命令持续查看日志，按 `Ctrl+C` 结束日志查看。打标完成时读取 `summary.json` 并回传。若恢复命令检测到原进程仍在运行，原前台进程的输出可能没有写入这个日志文件，可以先检查汇总是否已生成。
+
+```bash
+tail -n 60 -f ~/canyon43079/H-JEPA-VerifierVLA/outputs/verifier_long/robometer_pilot_seed7.log
+```
+
+```bash
+cat ~/canyon43079/H-JEPA-VerifierVLA/outputs/verifier_long/robometer_pilot_seed7/summary.json
+```
 
 每回合输出 `progress.json`、`window_labels.jsonl`、`progress.png` 与汇总，记录源视频及索引哈希、上下文帧编号、软件与模型版本。完整回合输出统一发布，中断后同一命令会复用已完成的回合。汇总中的 `COMPLETE` 表示打标文件生成完成，`label_quality_status=REVIEW_REQUIRED` 表示需要结合曲线和视频检查语义质量。耗时字段覆盖模型加载后的本轮工作，显存字段为当前进程的 PyTorch 分配／保留峰值。
 
