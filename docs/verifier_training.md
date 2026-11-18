@@ -97,7 +97,17 @@ env -u PYTHONPATH .venv-libero/bin/python -B -m scripts.prepare_verifier_long_da
 
 准备工具已在 Python 3.8 通过五项本地测试，覆盖分组隔离与顺序稳定性、重复／缺失初始状态、恢复路径与短窗口、命令入口及重复运行、写入失败清理与重试。
 
-## 当前服务器步骤 Robometer 四回合打标
+## 当前服务器步骤 核对 Robometer 四回合打标结果
+
+2026-11-18 12:40 的服务器两次采样均显示 `Pilot PIDs: NONE`。两个缓存分片大小为 4,965,629,698 和 3,935,034,144 字节，较大分片的修改时间为当日 12:02:07。原 `robometer_pilot_seed7_gpu0.log` 末尾已出现包含逐回合预测值的最终 JSON。按脚本执行顺序，该 JSON 在回合产物及总汇总写入后打印，说明试打标已运行到最终汇总阶段并退出。完整报告头部、四回合信息、GPU 显存和吞吐仍待回传。
+
+当前下一步读取已生成的汇总。
+
+```bash
+cat ~/canyon43079/H-JEPA-VerifierVLA/outputs/verifier_long/robometer_pilot_seed7_gpu0/summary.json
+```
+
+已回传的末尾成功回合显示末端进度 0.585316、末端成功概率 0.005555、负增量比例 45.26%；其 episode ID 未显示在片段中。超时回合 `libero_10_task02_init06` 的对应值为 0.544887、0.002632 和 50%。这两条结果提示需要结合完整报告和进度曲线检查标签区分度与逐步波动。后续先评估标签质量，再确定全量打标配置。
 
 `label_verifier_long_pilot.py` 从训练集中按任务编号选择最先同时包含成功与超时的两个任务，每个任务取初始状态编号最小的一条成功轨迹和一条超时轨迹，共四回合。选择依据固定在运行配置中。试运行用于检查进度标签的方向、数值变化和逐步差分，并测量打标资源开销。2026-11-18 用户要求停止当前进程并改用 GPU 0。当前运行配置包含 GPU 编号并校验目录内容，因此本次使用 `robometer_pilot_seed7_gpu0` 新目录重新打标四回合，复用现有环境和下载缓存。
 
@@ -116,7 +126,7 @@ env -u PYTHONPATH .venv-libero/bin/python -B -m scripts.prepare_verifier_long_da
 
 四帧前缀对应官方评测的 `use_frame_steps` 路径。模型的离散进度 logits 通过官方转换函数求连续期望值。标准 Transformers 加载路径及外部视角选择属于本项目的推理适配。权重中的历史 `similarity_head` 额外参数会在加载报告中列出，进度、成功、偏好和主干参数的缺失会终止运行。[官方逐步评估](https://github.com/robometer/robometer/blob/352d160389daa964788de1ec933d1925f3a6de4f/robometer/evals/eval_server.py)、[模型卡](https://huggingface.co/robometer/Robometer-4B/tree/beef63bc914c5c189329d49c6d712d96d632aa34)
 
-安装推理依赖后运行试打标。
+以下保留试打标的环境安装和启动命令，供后续重建运行时使用。
 
 ```bash
 cd ~/canyon43079/H-JEPA-VerifierVLA &&
@@ -137,11 +147,11 @@ env -u PYTHONPATH HF_HUB_DISABLE_XET=1 HF_HUB_ENABLE_HF_TRANSFER=0 \
 
 修复已在本地完成 Python 3.10／Linux x86_64 的 28 项依赖解析，核对全部 NVIDIA 依赖的来源为 PyPI。2026-11-18 收到的服务器日志确认安装及导入成功，版本为 Torch 2.8.0+cu126、Transformers 4.57.2。随后下载 Robometer 权重时出现 SSH `client_loop: send disconnect: Connection reset`，日志显示 3.94 GB 分片已完成，4.97 GB 分片最后显示到 95%。该输出尚不能确认服务器进程是否结束、完整权重是否就绪或打标是否完成。
 
-2026-11-18 随后的第一次诊断采样显示，GPU 0 打标进程 3528920 已运行约十分钟，完整分片为 3,935,034,144 字节，另一个 `.incomplete` 文件为 28,817 字节，最后修改时间早于本次进程启动。官方固定版本元数据确认缺失的 `model-00001-of-00002.safetensors` 应为 4,965,629,698 字节，SHA256 为 `2cfa81761595f6b10bd079736eb32bdeeeb0b49224619411bd511d9d1f1171a4`。当前仅收到第一次采样，具体网络或文件锁原因仍待核实。
+2026-11-18 11:57 的第一次诊断采样显示，GPU 0 打标进程 3528920 已运行约十分钟，完整分片为 3,935,034,144 字节，另一个 `.incomplete` 文件为 28,817 字节，最后修改时间早于本次进程启动。官方固定版本元数据确认缺失的 `model-00001-of-00002.safetensors` 应为 4,965,629,698 字节，SHA256 为 `2cfa81761595f6b10bd079736eb32bdeeeb0b49224619411bd511d9d1f1171a4`。当时据单次采样提出了下载恢复建议；随后 12:40 的回传已确认该分片完整缓存且原日志输出最终汇总，当前工作转为结果与标签质量检查。
 
-本次恢复改用标准 HTTP 下载，并开启 Hugging Face INFO 日志，显示文件下载、重试和锁等待。`HF_HUB_DISABLE_XET=1` 与 `HF_HUB_ENABLE_HF_TRANSFER=0` 在本项目的 `huggingface-hub==0.36.0` 中选择普通 HTTP 路径，`HF_HUB_DOWNLOAD_TIMEOUT=60` 设置每次读取等待的超时。服务器下载恢复和完整模型加载仍待回传。[官方环境变量](https://huggingface.co/docs/huggingface_hub/v0.36.0/en/package_reference/environment_variables)
+此前准备的恢复方案使用标准 HTTP 下载和 Hugging Face INFO 日志，显示文件下载、重试和锁等待。`HF_HUB_DISABLE_XET=1` 与 `HF_HUB_ENABLE_HF_TRANSFER=0` 在本项目的 `huggingface-hub==0.36.0` 中选择普通 HTTP 路径，`HF_HUB_DOWNLOAD_TIMEOUT=60` 设置每次读取等待的超时。相关开关已在本地验证，服务器是否执行过该恢复方案尚未回传，原日志中的完成结果不能据此归因于 HTTP 切换。[官方环境变量](https://huggingface.co/docs/huggingface_hub/v0.36.0/en/package_reference/environment_variables)
 
-SSH 重连后执行以下恢复命令。先向当前用户 GPU 0 上的打标进程发送 SIGTERM 并等待退出，再检查是否已有打标进程，最后用 `nohup` 在 GPU 0 后台启动并追加到 `robometer_pilot_seed7_gpu0_http.log`。命令复用现有环境、Hugging Face 缓存及 GPU 0 的打标目录。完整缓存文件会直接复用，未完成文件的下载由 Hugging Face 客户端按缓存状态恢复。后台运行用于跨 SSH 断线继续工作。
+以下保留下载再次停滞时的恢复命令。它先向当前用户 GPU 0 上的打标进程发送 SIGTERM 并等待退出，再检查是否已有打标进程，最后用 `nohup` 在 GPU 0 后台启动并追加到 `robometer_pilot_seed7_gpu0_http.log`。命令复用现有环境、Hugging Face 缓存及 GPU 0 的打标目录。完整缓存文件会直接复用，未完成文件的下载由 Hugging Face 客户端按缓存状态恢复。后台运行用于跨 SSH 断线继续工作。
 
 ```bash
 (
@@ -191,4 +201,4 @@ cat ~/canyon43079/H-JEPA-VerifierVLA/outputs/verifier_long/robometer_pilot_seed7
 4. 使用可求梯度的前向建立小样本训练检查，再训练 verifier；冻结 π₀.₅ 与视觉编码器，保存数据划分、权重来源、配置及训练日志。
 5. 在 Long 的验证集上检查候选排序并校准双轴触发阈值，最后在保留的测试初始状态上运行同协议闭环对照。
 
-**环境与验证状态。** 八项打标数据与恢复测试、此前十一项数据审计和划分测试均通过。本地另在 Python 3.10／Torch 2.8.0 CPU／Transformers 4.57.2 上，使用固定的真实 Qwen 处理器和随机初始化的小规格官方 RBM，验证图像预处理、特殊 token、前向、保存与重载，词表为 151,674，输入为 `[2,310]`，进度输出为 `[2,4]`，重载缺失参数为 0。曲线输出也已渲染检查。完整 4B 权重加载、GPU 显存、打标速度与语义质量由本轮服务器试运行验证。当前 Robometer 试打标使用 GPU 0，单进程运行。评测最多两组并行。Verifier 的预训练迁移、8D 状态适配、训练和闭环对照待完成。
+**环境与验证状态。** 八项打标数据与恢复测试、此前十一项数据审计和划分测试均通过。本地另在 Python 3.10／Torch 2.8.0 CPU／Transformers 4.57.2 上，使用固定的真实 Qwen 处理器和随机初始化的小规格官方 RBM，验证图像预处理、特殊 token、前向、保存与重载，词表为 151,674，输入为 `[2,310]`，进度输出为 `[2,4]`，重载缺失参数为 0。曲线输出也已渲染检查。服务器日志已显示模型推理和最终汇总输出。GPU 显存、整体打标速度和加载报告待完整汇总回传，标签语义质量待进一步核对。当前 Robometer 试打标使用 GPU 0，单进程运行。评测最多两组并行。Verifier 的预训练迁移、8D 状态适配、训练和闭环对照待完成。
