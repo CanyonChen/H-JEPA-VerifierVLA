@@ -122,7 +122,9 @@ env -u PYTHONPATH .venv-libero/bin/python -B -m scripts.prepare_verifier_long_da
 cd ~/canyon43079/H-JEPA-VerifierVLA &&
 git pull --ff-only origin main &&
 bash scripts/setup_robometer_env.sh &&
-env -u PYTHONPATH .venv-robometer/bin/python -B -m scripts.label_verifier_long_pilot \
+env -u PYTHONPATH HF_HUB_DISABLE_XET=1 HF_HUB_ENABLE_HF_TRANSFER=0 \
+  HF_HUB_VERBOSITY=info HF_HUB_DOWNLOAD_TIMEOUT=60 \
+  .venv-robometer/bin/python -u -B -m scripts.label_verifier_long_pilot \
   --split-dir outputs/verifier_long/split_seed7 \
   --output-dir outputs/verifier_long/robometer_pilot_seed7_gpu0 \
   --gpu 0 \
@@ -135,13 +137,17 @@ env -u PYTHONPATH .venv-robometer/bin/python -B -m scripts.label_verifier_long_p
 
 修复已在本地完成 Python 3.10／Linux x86_64 的 28 项依赖解析，核对全部 NVIDIA 依赖的来源为 PyPI。2026-11-18 收到的服务器日志确认安装及导入成功，版本为 Torch 2.8.0+cu126、Transformers 4.57.2。随后下载 Robometer 权重时出现 SSH `client_loop: send disconnect: Connection reset`，日志显示 3.94 GB 分片已完成，4.97 GB 分片最后显示到 95%。该输出尚不能确认服务器进程是否结束、完整权重是否就绪或打标是否完成。
 
-SSH 重连后执行以下切换和恢复命令。先向当前用户 GPU 1 上的打标进程发送 SIGTERM 并等待退出，再检查是否已有打标进程，最后用 `nohup` 在 GPU 0 后台启动并追加日志。命令复用现有环境和 Hugging Face 缓存。完整缓存文件会直接复用，未完成文件的下载由 Hugging Face 客户端按缓存状态恢复。后台运行用于跨 SSH 断线继续工作。
+2026-11-18 随后的第一次诊断采样显示，GPU 0 打标进程 3528920 已运行约十分钟，完整分片为 3,935,034,144 字节，另一个 `.incomplete` 文件为 28,817 字节，最后修改时间早于本次进程启动。官方固定版本元数据确认缺失的 `model-00001-of-00002.safetensors` 应为 4,965,629,698 字节，SHA256 为 `2cfa81761595f6b10bd079736eb32bdeeeb0b49224619411bd511d9d1f1171a4`。当前仅收到第一次采样，具体网络或文件锁原因仍待核实。
+
+本次恢复改用标准 HTTP 下载，并开启 Hugging Face INFO 日志，显示文件下载、重试和锁等待。`HF_HUB_DISABLE_XET=1` 与 `HF_HUB_ENABLE_HF_TRANSFER=0` 在本项目的 `huggingface-hub==0.36.0` 中选择普通 HTTP 路径，`HF_HUB_DOWNLOAD_TIMEOUT=60` 设置每次读取等待的超时。服务器下载恢复和完整模型加载仍待回传。[官方环境变量](https://huggingface.co/docs/huggingface_hub/v0.36.0/en/package_reference/environment_variables)
+
+SSH 重连后执行以下恢复命令。先向当前用户 GPU 0 上的打标进程发送 SIGTERM 并等待退出，再检查是否已有打标进程，最后用 `nohup` 在 GPU 0 后台启动并追加到 `robometer_pilot_seed7_gpu0_http.log`。命令复用现有环境、Hugging Face 缓存及 GPU 0 的打标目录。完整缓存文件会直接复用，未完成文件的下载由 Hugging Face 客户端按缓存状态恢复。后台运行用于跨 SSH 断线继续工作。
 
 ```bash
 (
   set -e
   cd ~/canyon43079/H-JEPA-VerifierVLA
-  old_pilot='[p]ython.*-m scripts[.]label_verifier_long_pilot.*--gpu[[:space:]]+1([[:space:]]|$)'
+  old_pilot='[p]ython.*-m scripts[.]label_verifier_long_pilot.*--gpu[[:space:]]+0([[:space:]]|$)'
   pkill -TERM -u "$(id -u)" -f "$old_pilot" || true
   while pgrep -u "$(id -u)" -f "$old_pilot" > /dev/null; do
     sleep 1
@@ -151,12 +157,14 @@ SSH 重连后执行以下切换和恢复命令。先向当前用户 GPU 1 上的
     exit 0
   fi
   mkdir -p outputs/verifier_long
-  nohup env -u PYTHONPATH .venv-robometer/bin/python -u -B -m scripts.label_verifier_long_pilot \
+  nohup env -u PYTHONPATH HF_HUB_DISABLE_XET=1 HF_HUB_ENABLE_HF_TRANSFER=0 \
+    HF_HUB_VERBOSITY=info HF_HUB_DOWNLOAD_TIMEOUT=60 \
+    .venv-robometer/bin/python -u -B -m scripts.label_verifier_long_pilot \
     --split-dir outputs/verifier_long/split_seed7 \
     --output-dir outputs/verifier_long/robometer_pilot_seed7_gpu0 \
     --gpu 0 \
     --batch-size 8 \
-    >> outputs/verifier_long/robometer_pilot_seed7_gpu0.log 2>&1 < /dev/null &
+    >> outputs/verifier_long/robometer_pilot_seed7_gpu0_http.log 2>&1 < /dev/null &
   printf 'Started GPU 0 pilot PID %s\n' "$!"
 )
 ```
@@ -164,7 +172,7 @@ SSH 重连后执行以下切换和恢复命令。先向当前用户 GPU 1 上的
 通过新命令启动后，可用下面的命令持续查看日志，按 `Ctrl+C` 结束日志查看。打标完成时读取 `summary.json` 并回传。若恢复命令检测到原进程仍在运行，原前台进程的输出可能没有写入这个日志文件，可以先检查汇总是否已生成。
 
 ```bash
-tail -n 60 -f ~/canyon43079/H-JEPA-VerifierVLA/outputs/verifier_long/robometer_pilot_seed7_gpu0.log
+tail -n 60 -f ~/canyon43079/H-JEPA-VerifierVLA/outputs/verifier_long/robometer_pilot_seed7_gpu0_http.log
 ```
 
 ```bash
