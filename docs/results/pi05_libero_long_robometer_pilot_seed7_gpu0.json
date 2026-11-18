@@ -1,0 +1,132 @@
+{
+  "schema": "verifier_long_robometer_pilot_v1",
+  "status": "COMPLETE",
+  "label_quality_status": "REVIEW_REQUIRED",
+  "output_dir": "/home/jovyan/canyon43079/H-JEPA-VerifierVLA/outputs/verifier_long/robometer_pilot_seed7_gpu0",
+  "gpu": 0,
+  "episodes": 4,
+  "retained_episodes": 0,
+  "labeled_frames": 1565,
+  "labeled_windows": 313,
+  "wall_seconds": 119.37149106152356,
+  "model_load_seconds": 1159.3127433303744,
+  "new_labeled_frames": 1565,
+  "new_frames_per_second": 13.110333012372323,
+  "timing_scope": "This invocation after model loading, including artifact output. Model loading is reported separately.",
+  "model": {
+    "model_id": "robometer/Robometer-4B",
+    "model_revision": "beef63bc914c5c189329d49c6d712d96d632aa34",
+    "source_commit": "352d160389daa964788de1ec933d1925f3a6de4f",
+    "source_archive": {
+      "url": "https://github.com/robometer/robometer/archive/352d160389daa964788de1ec933d1925f3a6de4f.zip",
+      "archive_info": {}
+    },
+    "processor_id": "Qwen/Qwen3-VL-4B-Instruct",
+    "processor_revision": "ebb281ec70b05090aa6165b016eac8ec08e71b17",
+    "loading": {
+      "missing_keys": [],
+      "unexpected_keys": [
+        "similarity_head.0.bias",
+        "similarity_head.0.weight",
+        "similarity_head.1.bias",
+        "similarity_head.1.weight",
+        "similarity_head.4.bias",
+        "similarity_head.4.weight"
+      ],
+      "mismatched_keys": [],
+      "error_msgs": []
+    },
+    "dtype": "bfloat16",
+    "attention": "sdpa",
+    "device_name": "NVIDIA H100 80GB HBM3",
+    "config_sha256": "6e4b77171e0ec6d926767906892e630890c378f796c049188f5670ab64ca3abe",
+    "weight_index_sha256": "5f914c84012ce50f6d5a5903ab5abd84b6e08900d0f17be6f98e913fcc8a6b1c",
+    "package_versions": {
+      "torch": "2.8.0+cu126",
+      "torchvision": "0.23.0+cu126",
+      "transformers": "4.57.2",
+      "robometer": "0.0.1",
+      "qwen-vl-utils": "0.0.14",
+      "huggingface-hub": "0.36.0"
+    }
+  },
+  "runtime": {
+    "peak_allocated_gib": 9.396223068237305,
+    "peak_reserved_gib": 9.68359375,
+    "memory_scope": "PyTorch memory in this labeler process, including model loading"
+  },
+  "per_episode": [
+    {
+      "episode_id": "libero_10_task00_init00",
+      "task_id": 0,
+      "outcome": "success",
+      "frames": 290,
+      "windows": 58,
+      "progress_first": 0.23518183827400208,
+      "progress_last": 0.5811954736709595,
+      "progress_min": 0.23211970925331116,
+      "progress_max": 0.6732364892959595,
+      "terminal_success_probability": 0.007815888151526451,
+      "delta_min": -0.044966042041778564,
+      "delta_max": 0.06725671887397766,
+      "negative_delta_fraction": 0.47750865051903113,
+      "near_zero_delta_fraction": 0.04152249134948097,
+      "near_zero_threshold": 0.001,
+      "wall_seconds": 28.23128137178719
+    },
+    {
+      "episode_id": "libero_10_task00_init18",
+      "task_id": 0,
+      "outcome": "timeout",
+      "frames": 521,
+      "windows": 104,
+      "progress_first": 0.22852547466754913,
+      "progress_last": 0.36712324619293213,
+      "progress_min": 0.15427468717098236,
+      "progress_max": 0.42227548360824585,
+      "terminal_success_probability": 0.0010649627074599266,
+      "delta_min": -0.11270111799240112,
+      "delta_max": 0.10355925559997559,
+      "negative_delta_fraction": 0.48846153846153845,
+      "near_zero_delta_fraction": 0.06346153846153846,
+      "near_zero_threshold": 0.001,
+      "wall_seconds": 35.97840879112482
+    },
+    {
+      "episode_id": "libero_10_task02_init00",
+      "task_id": 2,
+      "outcome": "success",
+      "frames": 233,
+      "windows": 47,
+      "progress_first": 0.23430639505386353,
+      "progress_last": 0.5853161215782166,
+      "progress_min": 0.2240731418132782,
+      "progress_max": 0.7452567219734192,
+      "terminal_success_probability": 0.005554925184696913,
+      "delta_min": -0.21021032333374023,
+      "delta_max": 0.13834863901138306,
+      "negative_delta_fraction": 0.4525862068965517,
+      "near_zero_delta_fraction": 0.0603448275862069,
+      "near_zero_threshold": 0.001,
+      "wall_seconds": 13.178824184462428
+    },
+    {
+      "episode_id": "libero_10_task02_init06",
+      "task_id": 2,
+      "outcome": "timeout",
+      "frames": 521,
+      "windows": 104,
+      "progress_first": 0.27582812309265137,
+      "progress_last": 0.544887125492096,
+      "progress_min": 0.2581968307495117,
+      "progress_max": 0.5984060764312744,
+      "terminal_success_probability": 0.0026316740550100803,
+      "delta_min": -0.06739383935928345,
+      "delta_max": 0.08279252052307129,
+      "negative_delta_fraction": 0.5,
+      "near_zero_delta_fraction": 0.10192307692307692,
+      "near_zero_threshold": 0.001,
+      "wall_seconds": 41.704969776794314
+    }
+  ]
+}

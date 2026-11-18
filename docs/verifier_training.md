@@ -1,8 +1,8 @@
 # B5 LIBERO-Long verifier 训练
 
-更新日期为 2026-11-17。按用户本轮确认，**当前 B5 使用 LIBERO-Long（`libero_10`）的 10 个任务、500 个回合，推进数据检查、划分、打标、verifier 训练及闭环对照。** π₀.₅ 与视觉编码器冻结，verifier 基于官方结构和论文方法进行本项目复现。
+更新日期为 2026-11-18。按用户本轮确认，**当前 B5 使用 LIBERO-Long（`libero_10`）的 10 个任务、500 个回合，推进数据检查、划分、打标、verifier 训练及闭环对照。** π₀.₅ 与视觉编码器冻结，verifier 基于官方结构和论文方法进行本项目复现。
 
-2026-11-17，服务器已完成 Long 500 回合的数据审计及固定划分，训练／验证／测试分别为 400／50／50 回合。训练集包含 368 次成功、32 次超时和 22,213 个动作窗口。当前步骤为四条训练轨迹的 Robometer 进度打标试运行，随后检查标签质量、迁移预训练参数并训练 verifier。[服务器审计记录](results/pi05_libero_long_verifier_data_audit.json)、[划分回传](results/pi05_libero_long_verifier_split_seed7.json)
+服务器已完成 Long 500 回合的数据审计及固定划分，训练／验证／测试分别为 400／50／50 回合。训练集包含 368 次成功、32 次超时和 22,213 个动作窗口。2026-11-18，GPU 0 的四条训练轨迹试打标完整汇总已回传：1,565 帧、313 窗口，加载后用时 119.37 秒，13.11 帧/秒。当前步骤为 CPU 标签与视频画面核对，随后确定全量打标配置、迁移预训练参数并训练 verifier。[服务器审计记录](results/pi05_libero_long_verifier_data_audit.json)、[划分回传](results/pi05_libero_long_verifier_split_seed7.json)、[试打标完整回传](results/pi05_libero_long_robometer_pilot_seed7_gpu0.json)
 
 ## 已核对的依据与实施边界
 
@@ -97,17 +97,41 @@ env -u PYTHONPATH .venv-libero/bin/python -B -m scripts.prepare_verifier_long_da
 
 准备工具已在 Python 3.8 通过五项本地测试，覆盖分组隔离与顺序稳定性、重复／缺失初始状态、恢复路径与短窗口、命令入口及重复运行、写入失败清理与重试。
 
-## 当前服务器步骤 核对 Robometer 四回合打标结果
+## 已完成的四回合试打标
 
-2026-11-18 12:40 的服务器两次采样均显示 `Pilot PIDs: NONE`。两个缓存分片大小为 4,965,629,698 和 3,935,034,144 字节，较大分片的修改时间为当日 12:02:07。原 `robometer_pilot_seed7_gpu0.log` 末尾已出现包含逐回合预测值的最终 JSON。按脚本执行顺序，该 JSON 在回合产物及总汇总写入后打印，说明试打标已运行到最终汇总阶段并退出。完整报告头部、四回合信息、GPU 显存和吞吐仍待回传。
+2026-11-18 完整回传为 `status=COMPLETE`，四回合全部新打标，模型加载的 missing/mismatched/error 列表均为空，额外参数仅为已知的历史 `similarity_head`。完整服务器汇总按原值归档，原始曲线、标签与视频仍在服务器。[完整回传](results/pi05_libero_long_robometer_pilot_seed7_gpu0.json)
 
-当前下一步读取已生成的汇总。
+| 训练轨迹 | 原始结果 | 末端进度 | 末端成功概率 | 逐步负增量比例 |
+| --- | --- | ---: | ---: | ---: |
+| task00 / init00 | success | 0.581195 | 0.7816% | 47.75% |
+| task00 / init18 | timeout | 0.367123 | 0.1065% | 48.85% |
+| task02 / init00 | success | 0.585316 | 0.5555% | 45.26% |
+| task02 / init06 | timeout | 0.544887 | 0.2632% | 50.00% |
+
+两组成功减超时的末端进度差分别为 0.214072、0.040429。这是每任务各一对轨迹的描述，不能据此确定分类或候选排序准确率。成功回合的末端成功概率偏低，task02 成功回合的一步最小增量为 −0.210210，需对照指令与画面检查。负增量可表达退步，超时也可包含部分进展；两者本身不构成标签错误。
+
+`label_quality_status=REVIEW_REQUIRED` 是脚本固定写入的人工复核标记，不是某个自动质量阈值未通过。已核对固定官方源码：四帧前缀采样、任务提示词、特殊 token 顺序和成功 logits 的一次 sigmoid 转换与当前适配器一致。没有在这些接口中发现明显错误；该检查不能代替视频语义复核。[官方逐步评估](https://github.com/robometer/robometer/blob/352d160389daa964788de1ec933d1925f3a6de4f/robometer/evals/eval_server.py)、[官方输入构造](https://github.com/robometer/robometer/blob/352d160389daa964788de1ec933d1925f3a6de4f/robometer/data/collators/rbm_heads.py)
+
+**实测资源。** 单张 H100 80 GB、batch 8、BF16/SDPA，1,565 帧和 313 窗口用时 119.37 秒（含产物输出），吞吐 13.11 帧/秒。当前进程的 PyTorch 分配/保留峰值分别为 9.40/9.68 GiB，包含模型加载阶段。模型准备共 1,159.31 秒，包含下载与加载，不能作为缓存就绪后的固定加载耗时。
+
+按相同吞吐线性外推，训练集 400 回合的 110,754 帧约 2.35 小时；训练加验证 450 回合的 124,727 帧约 2.64 小时。这些是标签生成估算，排除下载、模型准备及任务/视频差异，未测量 verifier 训练显存或耗时。测试集保留用于最终评测，当前不用于标签配置选择。
+
+## 当前服务器步骤 CPU 核对标签与视频
+
+[inspect_verifier_long_labels.py](../scripts/inspect_verifier_long_labels.py) 复用现有 `.venv-robometer`，读取四回合原始标签与视频，不加载模型。检查标签和视频哈希、逐帧时间线、窗口增量与短窗口 mask，并输出逐步变化、完整五步窗口净变化、最低增量前后的四帧上下文编号。每回合生成一张包含初始、最高进度、最低增量前后及终止前后画面的核对图，保留原始预测值。
 
 ```bash
-cat ~/canyon43079/H-JEPA-VerifierVLA/outputs/verifier_long/robometer_pilot_seed7_gpu0/summary.json
+cd ~/canyon43079/H-JEPA-VerifierVLA &&
+git pull --ff-only origin main &&
+env -u PYTHONPATH CUDA_VISIBLE_DEVICES="" .venv-robometer/bin/python -B \
+  -m scripts.inspect_verifier_long_labels \
+  --run-dir outputs/verifier_long/robometer_pilot_seed7_gpu0 \
+  --output-dir outputs/verifier_long/robometer_review_seed7_gpu0
 ```
 
-已回传的末尾成功回合显示末端进度 0.585316、末端成功概率 0.005555、负增量比例 45.26%；其 episode ID 未显示在片段中。超时回合 `libero_10_task02_init06` 的对应值为 0.544887、0.002632 和 50%。这两条结果提示需要结合完整报告和进度曲线检查标签区分度与逐步波动。后续先评估标签质量，再确定全量打标配置。
+回传终端 JSON 与四张 `*_review.png`，优先查看 `libero_10_task02_init00_review.png` 中最大下降前后的画面。`inspection_status=COMPLETE` 只表示产物检查完成，语义质量仍需要看图判断。源标签与视频保持不变，检查目录独立保存。工具已通过三项新增 CPU 测试，并以合成数据核对了图像排版；真实服务器核对输出待回传。
+
+## 试打标配置与历史启动方式
 
 `label_verifier_long_pilot.py` 从训练集中按任务编号选择最先同时包含成功与超时的两个任务，每个任务取初始状态编号最小的一条成功轨迹和一条超时轨迹，共四回合。选择依据固定在运行配置中。试运行用于检查进度标签的方向、数值变化和逐步差分，并测量打标资源开销。2026-11-18 用户要求停止当前进程并改用 GPU 0。当前运行配置包含 GPU 编号并校验目录内容，因此本次使用 `robometer_pilot_seed7_gpu0` 新目录重新打标四回合，复用现有环境和下载缓存。
 
@@ -191,14 +215,14 @@ cat ~/canyon43079/H-JEPA-VerifierVLA/outputs/verifier_long/robometer_pilot_seed7
 
 每回合输出 `progress.json`、`window_labels.jsonl`、`progress.png` 与汇总，记录源视频及索引哈希、上下文帧编号、软件与模型版本。完整回合输出统一发布，中断后同一命令会复用已完成的回合。汇总中的 `COMPLETE` 表示打标文件生成完成，`label_quality_status=REVIEW_REQUIRED` 表示需要结合曲线和视频检查语义质量。耗时字段覆盖模型加载后的本轮工作，显存字段为当前进程的 PyTorch 分配／保留峰值。
 
-回传最后的 JSON，重点查看四回合的首末进度、成功／超时之间的差异、负增量与接近零增量比例，以及显存和耗时。进度头允许表达停滞与退步。试打标结果回传后再确定全量标签配置。
+完整试打标汇总已回传并归档。当前回传 CPU 核对报告和图片，检查指令、画面变化与原始进度的关系，然后确定全量标签配置。
 
 ## 后续顺序与环境
 
-1. 运行四条训练轨迹的 Robometer 试打标，核对进度曲线和逐步时间对应，测量资源开销。
+1. 四条训练轨迹的 Robometer 试打标和资源测量已完成；当前用 CPU 核对进度曲线与视频，确定标签适用性。
 2. 固定标签配置后生成训练与验证所需的标签，验证侧用于配置选择，测试侧用于最终评测。
 3. 固定 V-JEPA 2-AC 源码/权重，验证迁移覆盖率与图像、状态、动作语义；新增 8D 状态投影及任务/进度参数。
 4. 使用可求梯度的前向建立小样本训练检查，再训练 verifier；冻结 π₀.₅ 与视觉编码器，保存数据划分、权重来源、配置及训练日志。
 5. 在 Long 的验证集上检查候选排序并校准双轴触发阈值，最后在保留的测试初始状态上运行同协议闭环对照。
 
-**环境与验证状态。** 八项打标数据与恢复测试、此前十一项数据审计和划分测试均通过。本地另在 Python 3.10／Torch 2.8.0 CPU／Transformers 4.57.2 上，使用固定的真实 Qwen 处理器和随机初始化的小规格官方 RBM，验证图像预处理、特殊 token、前向、保存与重载，词表为 151,674，输入为 `[2,310]`，进度输出为 `[2,4]`，重载缺失参数为 0。曲线输出也已渲染检查。服务器日志已显示模型推理和最终汇总输出。GPU 显存、整体打标速度和加载报告待完整汇总回传，标签语义质量待进一步核对。当前 Robometer 试打标使用 GPU 0，单进程运行。评测最多两组并行。Verifier 的预训练迁移、8D 状态适配、训练和闭环对照待完成。
+**环境与验证状态。** 本轮八项打标数据/恢复测试与三项标签检查测试共十一项通过；此前数据审计和划分共十一项测试已通过。本地另在 Python 3.10／Torch 2.8.0 CPU／Transformers 4.57.2 上，使用固定的真实 Qwen 处理器和随机初始化的小规格官方 RBM，验证图像预处理、特殊 token、前向、保存与重载，词表为 151,674，输入为 `[2,310]`，进度输出为 `[2,4]`，重载缺失参数为 0。服务器 GPU 0 已完成完整模型四回合推理，资源与加载报告已归档，当前 CPU 语义核对待回传。Verifier 的预训练迁移、8D 状态适配、训练和闭环对照待完成。

@@ -1,13 +1,13 @@
 # 第一阶段：π₀.₅ baseline 复现计划
 
-更新日期为 2026-11-17。
+更新日期为 2026-11-18。
 
 所属阶段：[总实验计划](plan.md)中的 P0 / baseline_setup。  
 模型环境、CPU/GPU 检查、官方 π₀.₅-LIBERO 检查点与 H100 EGL 均已通过。2026-11-12，服务器在 `~/canyon43079/H-JEPA-VerifierVLA` 完成 B2 的 10/10 成功 smoke，并回传 B3 的 500 个有效 episode，459 次成功、41 次超时，成功率 91.8%，Wilson 95% 区间为 89.06%–93.90%。B3 合并首段 290 回合与恢复段 210 回合，基础设施异常为 0。该次运行使用 3 组并行，运行结束后默认配置改为 2 组。原始产物待拉取复核，B4/B5 按下表继续推进。[B2 汇总](results/pi05_libero_smoke_seed7.json)、[B3 汇总](results/pi05_libero_long_seed7.json)、[B3 记录](libero_baseline.md)
 
 2026-11-13，B4 的 LiLo-VLA Ultra-Long 单候选正式评测已回传全部 90 个有效回合：0 次成功、76 次乱序失败、14 次任务超时，SR 0%、AP 1.6049%。首段有效 32 回合与恢复段新增 58 回合合并；最终合并集基础设施异常为 0，历史心跳故障另行保留。回传汇总已核对，原始视频与逐回合文件尚未下载；下一步为 B5 的 VeriVLA 资源与评分接口交接。[B4 结果](lilo_baseline.md)、[完整汇总](results/pi05_lilo_ultra_long_formal_v2.json)
 
-2026-11-17，B5 使用 **LIBERO-Long 的 10 个任务、500 个回合**。服务器数据审计和 400／50／50 回合划分均已完成。训练集包含 368 次成功、32 次超时和 22,213 个动作窗口。下一步在 GPU 1 上运行四条训练轨迹的 Robometer 打标，检查进度标签、实际耗时与显存，再推进 verifier 训练与 Long 闭环对照。[当前步骤](verifier_training.md)、[划分回传](results/pi05_libero_long_verifier_split_seed7.json)
+2026-11-18，B5 使用 **LIBERO-Long 的 10 个任务、500 个回合**。服务器数据审计和 400／50／50 回合划分均已完成。训练集包含 368 次成功、32 次超时和 22,213 个动作窗口。GPU 0 的四回合 Robometer 试打标已回传：1,565 帧、313 窗口，加载后用时 119.37 秒，13.11 帧/秒，进程保留显存峰值 9.68 GiB。当前步骤为 CPU 标签与视频核对，随后确定全量打标配置并推进 verifier 训练与 Long 闭环对照。[当前步骤](verifier_training.md)、[完整试打标回传](results/pi05_libero_long_robometer_pilot_seed7_gpu0.json)
 
 资源：八卡 A100/H100 服务器、MuJoCo；Piper 真机用于后续阶段。
 
@@ -56,7 +56,7 @@
 | B2 / pi05_libero_smoke | 运行 `libero_10` 每任务 1 个 episode，共 10 个；检查视频、动作执行和终止逻辑 | 十个任务的闭环记录与视频 | 无未解释的加载、通信或渲染错误；成功与失败均有可追溯记录 | 服务器 10/10 成功；原始视频尚未拉取及逐帧复核 |
 | B3 / pi05_long_baseline | 补齐逐 episode 记录和视频唯一命名；按固定初始化运行 Long 每任务 50 次 | 500 个 episode 的记录、逐任务成功率、Long 总结果 | 预定 episode 全部有有效结果；基础设施异常已单列并处理 | 服务器回传完成，459/500 成功、41 次超时，91.8%。原始产物待拉取复核。[记录](libero_baseline.md) |
 | B4 / pi05_lilo_ultra_long | 接入 LiLo-VLA Ultra-Long 的全部 9 个配置，先运行 π₀.₅ 单候选 baseline；首轮每配置 10 次，共 90 回合 | 逐配置、逐顺序组及整体的 SR/AP，逐回合技能完成记录与视频 | 9 个配置均有完整记录；SR/AP 可从有序技能完成记录重算；初始化、控制预算和模型协议已固定 | 服务器回传完成：90 个有效回合，0 成功、76 乱序失败、14 超时；SR 0%、AP 1.6049%，最终合并集无基础设施异常。原始产物待下载复核。[结果](lilo_baseline.md) |
-| B5 / pi05_verifier_handoff | 使用 Long 10 任务的 500 回合，冻结 π₀.₅，补齐 verifier 数据划分、标签、预训练迁移、训练和候选评分接口 | Long 数据检查与独立划分、训练配置/权重及评测接口 | 预训练实际加载与梯度通过，训练与测试独立，在 Long 保留测试初始状态上进行同协议对照 | 服务器已完成审计及 400／50／50 回合划分。当前为四条训练轨迹的 Robometer 试打标，完整模型 GPU 推理、标签质量及后续训练和对照待验证。[步骤](verifier_training.md) |
+| B5 / pi05_verifier_handoff | 使用 Long 10 任务的 500 回合，冻结 π₀.₅，补齐 verifier 数据划分、标签、预训练迁移、训练和候选评分接口 | Long 数据检查与独立划分、训练配置/权重及评测接口 | 预训练实际加载与梯度通过，训练与测试独立，在 Long 保留测试初始状态上进行同协议对照 | 服务器已完成审计、400／50／50 回合划分及 GPU 0 四回合 Robometer 试打标。当前为 CPU 标签/视频核对，全量标签、verifier 训练及对照待完成。[步骤](verifier_training.md) |
 
 B3 已在单 GPU 完成参考结果。后续 B4 按用户最新要求仅使用 GPU 1，最多两组模型＋仿真进程并行，共用任务队列；一组完成后领取下一配置，总计仍为 9 回合 smoke 或 90 回合正式评测。参数为 `--gpu 1 --egl-device 1 --max-workers 2`。每项任务的模型卡、EGL 卡、端口、episode 范围和产物均有记录，不涉及分布式训练。
 
@@ -99,13 +99,13 @@ B4 已使用 LiLo-VLA 发布的 Ultra-Long benchmark 评测 π₀.₅-LIBERO 检
 
 **当前交接。** B4 的单候选正式结果已齐全：[完整汇总](results/pi05_lilo_ultra_long_formal_v2.json)为 90 个有效回合、SR 0%、AP 1.6049%，76 次乱序失败、14 次超时，Wilson 95% 成功率区间为 0%–4.0936%。保留首段 32 个有效回合，恢复段新增 58 个（50 乱序失败、8 超时），最终合并集无基础设施异常。首段 task 2 / trial 2 的心跳异常及传输层修复单独归档，旧产物目录需保留。汇总计数与 AP 已本地核对；原始逐回合文件及视频尚未下载。恢复段耗时 1308.48 秒、159.57 个新增有效回合/小时，这些数字仅覆盖新增 58 个回合。
 
-**B5 接续范围。** 2026-11-17 确认使用 Long 数据。服务器已完成 500 回合审计及种子 7 的固定划分，训练／验证／测试分别包含 400／50／50 回合、22,213／2,799／2,761 个窗口，290 回合引用旧运行目录。当前 `scripts.label_verifier_long_pilot` 选择两个训练任务各一条成功与一条超时轨迹，使用固定 Robometer-4B 源码、权重和处理器，按最新要求在 GPU 0 上生成逐控制步进度、窗口增量及曲线。打标独立使用 `.venv-robometer`，数据整理复用 B3 的 `.venv-libero`。已收到末尾两回合的打标结果片段，完整汇总待回传。[完整命令与配置](verifier_training.md)
+**B5 接续范围。** 2026-11-17 确认使用 Long 数据。服务器已完成 500 回合审计及种子 7 的固定划分，训练／验证／测试分别包含 400／50／50 回合、22,213／2,799／2,761 个窗口，290 回合引用旧运行目录。`scripts.label_verifier_long_pilot` 已在 GPU 0 完成两个训练任务各一条成功与一条超时轨迹的逐步打标，四回合完整汇总已归档。打标和当前 CPU 标签检查复用 `.venv-robometer`，数据整理复用 B3 的 `.venv-libero`。[完整命令与配置](verifier_training.md)
 
-首次服务器安装的 NVIDIA wheel 下载连接超时已通过调整索引修复。2026-11-18 回传确认 `.venv-robometer` 安装和导入通过，Torch 2.8.0+cu126、Transformers 4.57.2。随后权重下载阶段发生 SSH 连接重置，3.94 GB 分片已完成，4.97 GB 分片最后显示到 95%，服务器进程和最终产物状态待核实。用户随后要求停止当前进程并切换到 GPU 0。随后已在 GPU 0 启动打标进程，输出目标为 `robometer_pilot_seed7_gpu0`，完整模型加载和四回合结果待回传。
+首次服务器安装的 NVIDIA wheel 下载连接超时已通过调整索引修复。2026-11-18 回传确认 `.venv-robometer` 安装和导入通过，Torch 2.8.0+cu126、Transformers 4.57.2。随后权重下载阶段发生 SSH 连接重置，用户要求停止进程并切换到 GPU 0。输出目标为 `robometer_pilot_seed7_gpu0`，后续完整模型加载与四回合结果均已回传。
 
-GPU 0 在 11:57 的首次诊断采样显示进程仍在，完整分片为 3,935,034,144 字节，另一分片仅 28,817 字节。当时准备了标准 HTTP 下载和 INFO 日志的恢复指令。随后 12:40 的两次采样均显示进程已退出、两个分片均完整缓存，原 `robometer_pilot_seed7_gpu0.log` 已输出最终逐回合汇总。当前下一步读取 `robometer_pilot_seed7_gpu0/summary.json`，核对完整四回合报告及标签质量。HTTP 恢复方案是否实际执行尚未确认。日志片段中的成功回合末端进度为 0.585316、超时回合为 0.544887；需要结合完整报告和曲线评估区分度，后续再确定全量打标配置。
+GPU 0 在 11:57 的首次诊断采样显示进程仍在，完整分片为 3,935,034,144 字节，另一分片仅 28,817 字节。当时准备了标准 HTTP 下载和 INFO 日志的恢复指令。随后 12:40 的两次采样确认进程已退出、两分片完整缓存，原日志已输出最终汇总；HTTP 恢复方案是否实际执行尚未确认。最终四回合共 1,565 帧、313 窗口，模型参数缺失与形状不匹配均为 0。`REVIEW_REQUIRED` 是固定人工复核标记。task00、task02 两组成功减超时末端进度差分别为 0.214072、0.040429；成功轨迹的末端成功概率低于 0.8%，需结合原视频检查标签适用性。当前已准备 `scripts.inspect_verifier_long_labels` 的 CPU 核对指令，服务器报告及图片待回传。
 
-新的 Long 对照在保留的同一测试初始状态上比较 base 与 verifier。窗口索引保留实际执行的 1–5 步动作及对应目标帧，短前缀附有五位有效子块 mask。Robometer 标签、V-JEPA 2-AC 实际迁移、8D 状态适配、训练加载器中的 mask 处理和训练均待完成。P1 分支机制诊断属于后续阶段。
+新的 Long 对照在保留的同一测试初始状态上比较 base 与 verifier。窗口索引保留实际执行的 1–5 步动作及对应目标帧，短前缀附有五位有效子块 mask。Robometer 全量标签、V-JEPA 2-AC 实际迁移、8D 状态适配、训练加载器中的 mask 处理和训练均待完成。P1 分支机制诊断属于后续阶段。
 
 来源：[官方 benchmark 用法](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/README.md#just-want-the-benchmark)、[suite 注册及 make_env](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/lilo_vla/benchmark/__init__.py)、[复现协议与指标](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/docs/REPRODUCTION.md)。
 
