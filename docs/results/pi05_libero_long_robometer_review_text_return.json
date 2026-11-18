@@ -1,0 +1,229 @@
+{
+  "schema": "verifier_long_label_review_text_return_v1",
+  "provenance": "Transcribed from user-pasted terminal report; not the complete server review.json.",
+  "inspection_status": "COMPLETE",
+  "label_quality_status": "REVIEW_REQUIRED",
+  "episodes": 4,
+  "frames": 1565,
+  "windows": 313,
+  "model_requests": 0,
+  "gpu_used": false,
+  "note": "Semantic label quality remains unverified; negative deltas are preserved.",
+  "per_episode": [
+    {
+      "episode_id": "libero_10_task00_init00",
+      "task_id": 0,
+      "outcome": "success",
+      "prompt": "put both the alphabet soup and the tomato sauce in the basket",
+      "progress": {
+        "progress_first": 0.23518183827400208,
+        "progress_last": 0.5811954736709595,
+        "progress_peak": 0.6732364892959595,
+        "peak_frame": 265,
+        "terminal_success_probability": 0.007815888151526451
+      },
+      "one_step_deltas": {
+        "count": 289,
+        "minimum": -0.044966042041778564,
+        "maximum": 0.06725671887397766,
+        "mean_absolute": 0.013134011450935812,
+        "negative_fraction": 0.47750865051903113,
+        "near_zero_fraction": 0.04152249134948097,
+        "near_zero_threshold": 0.001
+      },
+      "full_five_step_window_deltas": {
+        "count": 57,
+        "minimum": -0.06154137849807739,
+        "maximum": 0.1486431360244751,
+        "mean_absolute": 0.025190192879292004,
+        "negative_fraction": 0.43859649122807015,
+        "near_zero_fraction": 0.03508771929824561,
+        "near_zero_threshold": 0.001
+      },
+      "minimum_delta_event": {
+        "before_frame": 126,
+        "after_frame": 127,
+        "delta": -0.044966042041778564,
+        "progress_before": 0.5204235911369324,
+        "progress_after": 0.4754575490951538,
+        "context_before": [
+          0,
+          42,
+          84,
+          126
+        ],
+        "context_after": [
+          0,
+          42,
+          84,
+          127
+        ]
+      }
+    },
+    {
+      "episode_id": "libero_10_task00_init18",
+      "task_id": 0,
+      "outcome": "timeout",
+      "prompt": "put both the alphabet soup and the tomato sauce in the basket",
+      "progress": {
+        "progress_first": 0.22852547466754913,
+        "progress_last": 0.36712324619293213,
+        "progress_peak": 0.42227548360824585,
+        "peak_frame": 497,
+        "terminal_success_probability": 0.0010649627074599266
+      },
+      "one_step_deltas": {
+        "count": 520,
+        "minimum": -0.11270111799240112,
+        "maximum": 0.10355925559997559,
+        "mean_absolute": 0.01649176125916151,
+        "negative_fraction": 0.48846153846153845,
+        "near_zero_fraction": 0.06346153846153846,
+        "near_zero_threshold": 0.001
+      },
+      "full_five_step_window_deltas": {
+        "count": 104,
+        "minimum": -0.1353704184293747,
+        "maximum": 0.12895219027996063,
+        "mean_absolute": 0.028031122942383472,
+        "negative_fraction": 0.4519230769230769,
+        "near_zero_fraction": 0.028846153846153848,
+        "near_zero_threshold": 0.001
+      },
+      "minimum_delta_event": {
+        "before_frame": 317,
+        "after_frame": 318,
+        "delta": -0.11270111799240112,
+        "progress_before": 0.30782365798950195,
+        "progress_after": 0.19512253999710083,
+        "context_before": [
+          0,
+          105,
+          211,
+          317
+        ],
+        "context_after": [
+          0,
+          106,
+          212,
+          318
+        ]
+      }
+    },
+    {
+      "episode_id": "libero_10_task02_init00",
+      "task_id": 2,
+      "outcome": "success",
+      "prompt": "turn on the stove and put the moka pot on it",
+      "progress": {
+        "progress_first": 0.23430639505386353,
+        "progress_last": 0.5853161215782166,
+        "progress_peak": 0.7452567219734192,
+        "peak_frame": 211,
+        "terminal_success_probability": 0.005554925184696913
+      },
+      "one_step_deltas": {
+        "count": 232,
+        "minimum": -0.21021032333374023,
+        "maximum": 0.13834863901138306,
+        "mean_absolute": 0.014967711064322242,
+        "negative_fraction": 0.4525862068965517,
+        "near_zero_fraction": 0.0603448275862069,
+        "near_zero_threshold": 0.001
+      },
+      "full_five_step_window_deltas": {
+        "count": 46,
+        "minimum": -0.2642073631286621,
+        "maximum": 0.13129031658172607,
+        "mean_absolute": 0.0288562826488329,
+        "negative_fraction": 0.43478260869565216,
+        "near_zero_fraction": 0.06521739130434782,
+        "near_zero_threshold": 0.001
+      },
+      "minimum_delta_event": {
+        "before_frame": 212,
+        "after_frame": 213,
+        "delta": -0.21021032333374023,
+        "progress_before": 0.717227578163147,
+        "progress_after": 0.5070172548294067,
+        "context_before": [
+          0,
+          70,
+          141,
+          212
+        ],
+        "context_after": [
+          0,
+          71,
+          142,
+          213
+        ]
+      }
+    },
+    {
+      "episode_id": "libero_10_task02_init06",
+      "task_id": 2,
+      "outcome": "timeout",
+      "prompt": "turn on the stove and put the moka pot on it",
+      "progress": {
+        "progress_first": 0.27582812309265137,
+        "progress_last": 0.544887125492096,
+        "progress_peak": 0.5984060764312744,
+        "peak_frame": 298,
+        "terminal_success_probability": 0.0026316740550100803
+      },
+      "one_step_deltas": {
+        "count": 520,
+        "minimum": -0.06739383935928345,
+        "maximum": 0.08279252052307129,
+        "mean_absolute": 0.00920278957256904,
+        "negative_fraction": 0.5,
+        "near_zero_fraction": 0.10192307692307692,
+        "near_zero_threshold": 0.001
+      },
+      "full_five_step_window_deltas": {
+        "count": 104,
+        "minimum": -0.04239821434020996,
+        "maximum": 0.07106885313987732,
+        "mean_absolute": 0.016126285951871138,
+        "negative_fraction": 0.3942307692307692,
+        "near_zero_fraction": 0.019230769230769232,
+        "near_zero_threshold": 0.001
+      },
+      "minimum_delta_event": {
+        "before_frame": 227,
+        "after_frame": 228,
+        "delta": -0.06739383935928345,
+        "progress_before": 0.5790402889251709,
+        "progress_after": 0.5116464495658875,
+        "context_before": [
+          0,
+          75,
+          151,
+          227
+        ],
+        "context_after": [
+          0,
+          76,
+          152,
+          228
+        ]
+      }
+    }
+  ],
+  "paired_terminal_progress": [
+    {
+      "task_id": 0,
+      "success_episode": "libero_10_task00_init00",
+      "timeout_episode": "libero_10_task00_init18",
+      "terminal_progress_gap": 0.21407222747802734
+    },
+    {
+      "task_id": 2,
+      "success_episode": "libero_10_task02_init00",
+      "timeout_episode": "libero_10_task02_init06",
+      "terminal_progress_gap": 0.040428996086120605
+    }
+  ],
+  "full_report": "/home/jovyan/canyon43079/H-JEPA-VerifierVLA/outputs/verifier_long/robometer_review_text_seed7_gpu0/review.json"
+}
