@@ -128,7 +128,7 @@ def plot_review(trace, frames, selected):
     return buffer.getvalue()
 
 
-def run_review(run_dir, output_dir):
+def run_review(run_dir, output_dir, text_only=False):
     run_dir, output_dir = Path(run_dir).resolve(), Path(output_dir).resolve()
     require(output_dir != run_dir and run_dir not in output_dir.parents, "Use a review directory outside the label run")
     summary = read_json(run_dir / "summary.json")
@@ -141,7 +141,10 @@ def run_review(run_dir, output_dir):
     files, reports = {}, []
     for expected in summary["per_episode"]:
         report, trace, frames, selected = inspect_episode(run_dir / expected["episode_id"], expected, config)
-        files[report["figure"]] = plot_review(trace, frames, selected)
+        if text_only:
+            report.pop("figure")
+        else:
+            files[report["figure"]] = plot_review(trace, frames, selected)
         reports.append(report)
     require(sum(row["frames"] for row in reports) == summary["labeled_frames"] and
             sum(row["windows"] for row in reports) == summary["labeled_windows"], "Final totals differ")
@@ -154,7 +157,8 @@ def run_review(run_dir, output_dir):
                           terminal_progress_gap=rows["success"]["progress_last"] - rows["timeout"]["progress_last"]))
     report = dict(
         schema="verifier_long_label_review_v1", inspection_status="COMPLETE", label_quality_status="REVIEW_REQUIRED",
-        scope="CPU artifact checks and raw video/label review; semantic label quality requires visual review.",
+        scope="CPU artifact and numerical checks; semantic label quality remains unverified.",
+        text_only=text_only,
         run_dir=str(run_dir), output_dir=str(output_dir), model_requests=0, gpu_used=False,
         source_sha256={name: sha256_file(run_dir / name) for name in ("summary.json", "run_config.json")},
         review_script_sha256=sha256_file(Path(__file__)),
@@ -166,13 +170,35 @@ def run_review(run_dir, output_dir):
     return report
 
 
+def text_summary(report):
+    """Keep the numerical evidence copyable; the full report remains in review.json."""
+    lines = [
+        "inspection_status: " + report["inspection_status"],
+        "label_quality_status: " + report["label_quality_status"],
+        "episodes={} frames={} windows={} model_requests=0 gpu_used=false".format(
+            report["episodes"], report["frames"], report["windows"]),
+        "Semantic label quality remains unverified; negative deltas are preserved."]
+    keys = ("progress_first", "progress_last", "progress_peak", "peak_frame", "terminal_success_probability")
+    for row in report["per_episode"]:
+        lines.extend(["", "{} | task={} | outcome={}".format(row["episode_id"], row["task_id"], row["outcome"]),
+                      "prompt: " + row["prompt"],
+                      "progress: " + json_text({key: row[key] for key in keys}).strip()])
+        for key in ("one_step_deltas", "full_five_step_window_deltas", "minimum_delta_event"):
+            lines.append(key + ": " + json_text(row[key]).strip())
+    lines.extend(["", "paired_terminal_progress: " + json_text(report["paired_terminal_progress"]).strip(),
+                  "full_report: " + str(Path(report["output_dir"]) / "review.json")])
+    return "\n".join(lines) + "\n"
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--text-only", action="store_true", help="Print a compact text report and skip new review images")
     args = parser.parse_args(argv)
     try:
-        print(json_text(run_review(args.run_dir, args.output_dir), indent=2), end="")
+        report = run_review(args.run_dir, args.output_dir, text_only=args.text_only)
+        print(text_summary(report) if args.text_only else json_text(report, indent=2), end="")
         return 0
     except Exception as error:
         print(json_text(dict(inspection_status="ERROR", error=str(error))), file=sys.stderr, end="")

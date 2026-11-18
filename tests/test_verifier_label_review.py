@@ -1,12 +1,14 @@
 """CPU regressions for reviewing raw labels without changing their source artifacts."""
 
+from contextlib import redirect_stdout
+import io
 import json
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
 
-from scripts.inspect_verifier_long_labels import run_review
+from scripts.inspect_verifier_long_labels import main, run_review
 from scripts.label_verifier_long_pilot import run_pilot
 from scripts.prepare_verifier_long_data import json_text, sha256_file
 from tests.test_robometer_pilot import FakeLabeler, make_fixture
@@ -66,6 +68,27 @@ class LabelReviewTest(unittest.TestCase):
             Path(episodes[0]["video"]).write_bytes(b"different source")
             with self.assertRaisesRegex(ValueError, "Source video changed"):
                 run_review(run, base / "review")
+
+    def test_text_only_cli_preserves_checks_without_plotting(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            run, _, frames = self.make_run(base)
+            output = base / "text_review"
+            stdout = io.StringIO()
+            with patch("scripts.inspect_verifier_long_labels.read_external_video", return_value=frames), \
+                    patch("scripts.inspect_verifier_long_labels.plot_review", side_effect=AssertionError("No plot")), \
+                    redirect_stdout(stdout):
+                code = main(["--run-dir", str(run), "--output-dir", str(output), "--text-only"])
+            self.assertEqual(code, 0)
+            report = json.loads((output / "review.json").read_text(encoding="utf-8"))
+            self.assertEqual((report["episodes"], report["frames"], report["windows"]), (4, 32, 8))
+            self.assertEqual(list(output.glob("*.png")), [])
+            self.assertTrue(report["text_only"])
+            self.assertNotIn("figure", report["per_episode"][0])
+            self.assertIn("Semantic label quality remains unverified", stdout.getvalue())
+            self.assertIn("minimum_delta_event:", stdout.getvalue())
+            self.assertIn("full_five_step_window_deltas:", stdout.getvalue())
+            self.assertIn("paired_terminal_progress:", stdout.getvalue())
 
 
 if __name__ == "__main__":

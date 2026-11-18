@@ -116,9 +116,9 @@ env -u PYTHONPATH .venv-libero/bin/python -B -m scripts.prepare_verifier_long_da
 
 按相同吞吐线性外推，训练集 400 回合的 110,754 帧约 2.35 小时；训练加验证 450 回合的 124,727 帧约 2.64 小时。这些是标签生成估算，排除下载、模型准备及任务/视频差异，未测量 verifier 训练显存或耗时。测试集保留用于最终评测，当前不用于标签配置选择。
 
-## 当前服务器步骤 CPU 核对标签与视频
+## 当前服务器步骤 CPU 文字检查报告
 
-[inspect_verifier_long_labels.py](../scripts/inspect_verifier_long_labels.py) 复用现有 `.venv-robometer`，读取四回合原始标签与视频，不加载模型。检查标签和视频哈希、逐帧时间线、窗口增量与短窗口 mask，并输出逐步变化、完整五步窗口净变化、最低增量前后的四帧上下文编号。每回合生成一张包含初始、最高进度、最低增量前后及终止前后画面的核对图，保留原始预测值。
+[inspect_verifier_long_labels.py](../scripts/inspect_verifier_long_labels.py) 复用现有 `.venv-robometer`，读取四回合原始标签与视频，不加载模型。检查标签和视频哈希、逐帧时间线、窗口增量与短窗口 mask，并输出逐步变化、完整五步窗口净变化、最低增量前后的四帧上下文编号。2026-11-18 用户确认只能复制文字回传，当前使用 `--text-only`：跳过绘图，在终端打印精简数值报告，完整结果仍保存为 `review.json`。
 
 ```bash
 cd ~/canyon43079/H-JEPA-VerifierVLA &&
@@ -126,10 +126,11 @@ git pull --ff-only origin main &&
 env -u PYTHONPATH CUDA_VISIBLE_DEVICES="" .venv-robometer/bin/python -B \
   -m scripts.inspect_verifier_long_labels \
   --run-dir outputs/verifier_long/robometer_pilot_seed7_gpu0 \
-  --output-dir outputs/verifier_long/robometer_review_seed7_gpu0
+  --output-dir outputs/verifier_long/robometer_review_text_seed7_gpu0 \
+  --text-only
 ```
 
-回传终端 JSON 与四张 `*_review.png`，优先查看 `libero_10_task02_init00_review.png` 中最大下降前后的画面。`inspection_status=COMPLETE` 只表示产物检查完成，语义质量仍需要看图判断。源标签与视频保持不变，检查目录独立保存。工具已通过三项新增 CPU 测试，并以合成数据核对了图像排版；真实服务器核对输出待回传。
+只需复制终端文字回传。报告足以检查数值一致性、进度突变与两组成功/超时轨迹差异；画面中的动作是否符合任务指令仍标为未核实。`inspection_status=COMPLETE` 只表示产物与数值检查完成，不表示语义质量已经验证。源标签与视频保持不变，文字报告目录独立保存，兼容此前已生成的图像报告。四项 CPU 检查测试通过，包括纯文字入口不调用绘图；真实服务器报告待回传。
 
 ## 试打标配置与历史启动方式
 
@@ -215,14 +216,14 @@ cat ~/canyon43079/H-JEPA-VerifierVLA/outputs/verifier_long/robometer_pilot_seed7
 
 每回合输出 `progress.json`、`window_labels.jsonl`、`progress.png` 与汇总，记录源视频及索引哈希、上下文帧编号、软件与模型版本。完整回合输出统一发布，中断后同一命令会复用已完成的回合。汇总中的 `COMPLETE` 表示打标文件生成完成，`label_quality_status=REVIEW_REQUIRED` 表示需要结合曲线和视频检查语义质量。耗时字段覆盖模型加载后的本轮工作，显存字段为当前进程的 PyTorch 分配／保留峰值。
 
-完整试打标汇总已回传并归档。当前回传 CPU 核对报告和图片，检查指令、画面变化与原始进度的关系，然后确定全量标签配置。
+完整试打标汇总已回传并归档。当前只回传 CPU 文字报告，先检查数值与时间线，再依据可获得的证据确定全量标签配置。画面语义暂未核实。
 
 ## 后续顺序与环境
 
-1. 四条训练轨迹的 Robometer 试打标和资源测量已完成；当前用 CPU 核对进度曲线与视频，确定标签适用性。
+1. 四条训练轨迹的 Robometer 试打标和资源测量已完成；当前用 CPU 文字报告核对数值及时间线，画面语义保持未核实。
 2. 固定标签配置后生成训练与验证所需的标签，验证侧用于配置选择，测试侧用于最终评测。
 3. 固定 V-JEPA 2-AC 源码/权重，验证迁移覆盖率与图像、状态、动作语义；新增 8D 状态投影及任务/进度参数。
 4. 使用可求梯度的前向建立小样本训练检查，再训练 verifier；冻结 π₀.₅ 与视觉编码器，保存数据划分、权重来源、配置及训练日志。
 5. 在 Long 的验证集上检查候选排序并校准双轴触发阈值，最后在保留的测试初始状态上运行同协议闭环对照。
 
-**环境与验证状态。** 本轮八项打标数据/恢复测试与三项标签检查测试共十一项通过；此前数据审计和划分共十一项测试已通过。本地另在 Python 3.10／Torch 2.8.0 CPU／Transformers 4.57.2 上，使用固定的真实 Qwen 处理器和随机初始化的小规格官方 RBM，验证图像预处理、特殊 token、前向、保存与重载，词表为 151,674，输入为 `[2,310]`，进度输出为 `[2,4]`，重载缺失参数为 0。服务器 GPU 0 已完成完整模型四回合推理，资源与加载报告已归档，当前 CPU 语义核对待回传。Verifier 的预训练迁移、8D 状态适配、训练和闭环对照待完成。
+**环境与验证状态。** 本轮四项标签检查测试通过；此前八项打标数据/恢复测试与十一项数据审计/划分测试已通过。本地另在 Python 3.10／Torch 2.8.0 CPU／Transformers 4.57.2 上，使用固定的真实 Qwen 处理器和随机初始化的小规格官方 RBM，验证图像预处理、特殊 token、前向、保存与重载，词表为 151,674，输入为 `[2,310]`，进度输出为 `[2,4]`，重载缺失参数为 0。服务器 GPU 0 已完成完整模型四回合推理，资源与加载报告已归档，当前 CPU 文字报告待回传，画面语义暂未核实。Verifier 的预训练迁移、8D 状态适配、训练和闭环对照待完成。
