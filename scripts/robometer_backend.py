@@ -9,6 +9,8 @@ import hashlib
 import importlib.metadata
 import json
 from pathlib import Path
+import shutil
+import tempfile
 import time
 
 ROBOMETER_COMMIT = "352d160389daa964788de1ec933d1925f3a6de4f"
@@ -16,6 +18,8 @@ MODEL_ID = "robometer/Robometer-4B"
 MODEL_REVISION = "beef63bc914c5c189329d49c6d712d96d632aa34"
 PROCESSOR_ID = "Qwen/Qwen3-VL-4B-Instruct"
 PROCESSOR_REVISION = "ebb281ec70b05090aa6165b016eac8ec08e71b17"
+PROCESSOR_FILES = ("chat_template.json", "preprocessor_config.json", "video_preprocessor_config.json",
+                   "tokenizer_config.json", "tokenizer.json", "vocab.json", "merges.txt")
 SPECIAL_TOKENS = ("<|split_token|>", "<|reward_token|>", "<|pref_token|>", "<|sim_token|>", "<|prog_token|>")
 
 
@@ -23,18 +27,21 @@ def load_processor():
     from transformers import AutoProcessor
     from transformers.utils import is_offline_mode
 
-    processor_source = PROCESSOR_ID
+    options = dict(padding_side="right", do_sample_frames=False, fix_mistral_regex=False)
     if is_offline_mode():
         from huggingface_hub import snapshot_download
 
-        # Transformers 4.57.2 calls os.listdir(repo_id) in its offline tokenizer
-        # path. Resolve the same pinned snapshot before handing it to Transformers.
-        processor_source = snapshot_download(PROCESSOR_ID, revision=PROCESSOR_REVISION, local_files_only=True)
-
-    processor = AutoProcessor.from_pretrained(
-        processor_source, revision=PROCESSOR_REVISION, padding_side="right", do_sample_frames=False,
-        # Keep Qwen's original tokenizer; local snapshots also enter the library's Mistral regex check.
-        fix_mistral_regex=False)
+        snapshot = Path(snapshot_download(PROCESSOR_ID, revision=PROCESSOR_REVISION, local_files_only=True))
+        # Transformers 4.57.2 needs a directory offline, but its tokenizer crashes if
+        # it sees Qwen's model config.json. Load only the original processor assets.
+        with tempfile.TemporaryDirectory(prefix="robometer-qwen-") as processor_dir:
+            for name in PROCESSOR_FILES:
+                asset = snapshot / name
+                if asset.is_file():
+                    shutil.copyfile(asset, Path(processor_dir) / name)
+            processor = AutoProcessor.from_pretrained(processor_dir, local_files_only=True, **options)
+    else:
+        processor = AutoProcessor.from_pretrained(PROCESSOR_ID, revision=PROCESSOR_REVISION, **options)
     for token in SPECIAL_TOKENS:
         if token not in processor.tokenizer.get_vocab():
             processor.tokenizer.add_special_tokens({"additional_special_tokens": [token]})

@@ -51,14 +51,21 @@ def checkpoint_manifest(directory):
 class RecordedPolicy:
     """Attach server request identity, preserving the upstream policy RNG."""
 
-    def __init__(self, policy, provenance):
+    def __init__(self, policy, provenance, paired_candidates=False):
         self.policy = policy
         self.provenance = provenance
+        self.paired_candidates = paired_candidates
 
     def infer(self, observation):
         self.provenance["request_count"] += 1
         request_id = self.provenance["request_count"]
-        response = dict(self.policy.infer(observation))
+        if self.paired_candidates and "b5_seeds" in observation:
+            from scripts.b5_candidates import infer_candidates
+            observation = dict(observation)
+            seeds = observation.pop("b5_seeds")
+            response = {"candidate_actions": infer_candidates(self.policy, observation, seeds)}
+        else:
+            response = dict(self.policy.infer(observation))
         response["evaluation"] = {"service_id": self.provenance["service_id"], "request_id": request_id}
         return response
 
@@ -83,6 +90,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--checkpoint", default=CHECKPOINT)
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--paired-candidates", action="store_true",
+                        help="Enable seeded LIBERO candidate batches on a loopback-only service.")
     parser.add_argument("--warmup", action="store_true", help="Compile inference before serving and preserve the initial RNG.")
     parser.add_argument("--request-offset", type=int, default=0)
     parser.add_argument("--expected-checkpoint-sha256")
@@ -169,7 +178,8 @@ def main(argv=None):
         save_report()
         metadata = dict(policy.metadata)
         metadata["evaluation"] = provenance
-        server = WebsocketPolicyServer(RecordedPolicy(policy, provenance), host="0.0.0.0", port=args.port,
+        server = WebsocketPolicyServer(RecordedPolicy(policy, provenance, args.paired_candidates),
+                                       host="127.0.0.1" if args.paired_candidates else "0.0.0.0", port=args.port,
                                        metadata=metadata, ping_timeout=WEBSOCKET_PING_TIMEOUT)
         logging.info("Serving %s, service_id=%s, checkpoint_sha256=%s", CONFIG, service_id,
                      provenance["checkpoint_manifest"]["sha256"])

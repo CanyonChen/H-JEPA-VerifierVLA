@@ -40,7 +40,7 @@ class TaskProcesses:
 
 def gpu_status(gpu):
     output = subprocess.check_output([
-        "nvidia-smi", "-i", str(gpu),
+        "nvidia-smi", "-i", os.environ.get("B5_SCHEDULER_GPU_UUID") or str(gpu),
         "--query-gpu=memory.used,memory.total,utilization.gpu", "--format=csv,noheader,nounits",
     ], text=True)
     used, total, utilization = next(csv.reader(output.splitlines()))
@@ -51,7 +51,12 @@ def gpu_status(gpu):
 def child_environment(gpu, egl_device, model):
     environment = dict(os.environ)
     environment.pop("PYTHONPATH", None)
-    if model:
+    if os.environ.get("B5_SCHEDULER_ALLOCATED") == "1":
+        if model:
+            environment.update(JAX_PLATFORMS="cuda", XLA_PYTHON_CLIENT_PREALLOCATE="false")
+        else:
+            environment.update(MUJOCO_GL="egl", PYOPENGL_PLATFORM="egl", MUJOCO_EGL_DEVICE_ID=str(egl_device))
+    elif model:
         environment.update(CUDA_VISIBLE_DEVICES=str(gpu), JAX_PLATFORMS="cuda",
                            XLA_PYTHON_CLIENT_PREALLOCATE="false")
     else:
@@ -269,7 +274,12 @@ def main(argv=None):
     if lilo:
         from scripts.check_lilo_prompts import check_prompts
         prompt_report = check_prompts()
-    initial_resources = resource_status()
+    try:
+        initial_resources = resource_status()
+    except OSError as error:
+        if os.environ.get("B5_SCHEDULER_ALLOCATED") != "1":
+            raise
+        initial_resources = {"unavailable": str(error)}
     pending = [task for task in args.task_ids if task_starts[task]["first_init_state"] < args.trials_per_task]
     worker_limit = min(args.max_workers, len(pending))
     if args.gpus:
@@ -306,9 +316,12 @@ def main(argv=None):
     write_json(output_dir / "run_config.json", config)
     logging.info("Run directory: %s", output_dir)
     logging.info("GPUs %s, fixed concurrency %d", gpu_ids, worker_limit)
-    logging.info("Preflight cgroup snapshot: %.2f GiB used, %.2f GiB raw headroom, CPU quota %.1f cores, events %s",
-                 initial_resources["memory_current_bytes"] / GIB, initial_resources["memory_available_bytes"] / GIB,
-                 initial_resources["cpu_quota_cores"], initial_resources["memory_events"])
+    if "unavailable" in initial_resources:
+        logging.info("AIP container resource counters unavailable: %s", initial_resources["unavailable"])
+    else:
+        logging.info("Preflight cgroup snapshot: %.2f GiB used, %.2f GiB raw headroom, CPU quota %.1f cores, events %s",
+                     initial_resources["memory_current_bytes"] / GIB, initial_resources["memory_available_bytes"] / GIB,
+                     initial_resources["cpu_quota_cores"], initial_resources["memory_events"])
     logging.info("Retained %d valid episodes, including all recorded timeouts", len(retained))
     running = []
     peaks_by_gpu = {gpu: status["used_mib"] for gpu, status in initial_gpus.items()}
