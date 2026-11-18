@@ -21,9 +21,20 @@ SPECIAL_TOKENS = ("<|split_token|>", "<|reward_token|>", "<|pref_token|>", "<|si
 
 def load_processor():
     from transformers import AutoProcessor
+    from transformers.utils import is_offline_mode
+
+    processor_source = PROCESSOR_ID
+    if is_offline_mode():
+        from huggingface_hub import snapshot_download
+
+        # Transformers 4.57.2 calls os.listdir(repo_id) in its offline tokenizer
+        # path. Resolve the same pinned snapshot before handing it to Transformers.
+        processor_source = snapshot_download(PROCESSOR_ID, revision=PROCESSOR_REVISION, local_files_only=True)
 
     processor = AutoProcessor.from_pretrained(
-        PROCESSOR_ID, revision=PROCESSOR_REVISION, padding_side="right", do_sample_frames=False)
+        processor_source, revision=PROCESSOR_REVISION, padding_side="right", do_sample_frames=False,
+        # Keep Qwen's original tokenizer; local snapshots also enter the library's Mistral regex check.
+        fix_mistral_regex=False)
     for token in SPECIAL_TOKENS:
         if token not in processor.tokenizer.get_vocab():
             processor.tokenizer.add_special_tokens({"additional_special_tokens": [token]})

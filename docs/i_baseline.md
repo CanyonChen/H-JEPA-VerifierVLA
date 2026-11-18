@@ -105,6 +105,8 @@ B4 已使用 LiLo-VLA 发布的 Ultra-Long benchmark 评测 π₀.₅-LIBERO 检
 
 GPU 0 在 11:57 的首次诊断采样显示进程仍在，完整分片为 3,935,034,144 字节，另一分片仅 28,817 字节。当时准备了标准 HTTP 下载和 INFO 日志的恢复指令。随后 12:40 的两次采样确认进程已退出、两分片完整缓存，原日志已输出最终汇总；HTTP 恢复方案是否实际执行尚未确认。最终四回合共 1,565 帧、313 窗口，模型参数缺失与形状不匹配均为 0。`REVIEW_REQUIRED` 是固定人工复核标记。task00、task02 两组成功减超时末端进度差分别为 0.214072、0.040429；成功轨迹的末端成功概率低于 0.8%。用户只能复制文字，CPU 数值与时间线报告现已回传 COMPLETE，画面语义暂未核实。四个最低一步增量中三个伴随历史帧变化；task02 成功轨迹在 212→213 帧下降 0.210210，五步窗口最小变化为 −0.264207。已准备 `scripts.probe_robometer_context`，在 GPU 0 对四处分别交叉历史/当前帧并加入重复输入，共 24 个四帧输入，检查取帧规则对分数的影响；真实模型对照待回传，原标签保持不变。
 
+2026-11-18 15:25:56，首次上下文对照在 Qwen 处理器加载阶段中止，尚未调用模型推理。强制离线触发 Transformers 4.57.2 将仓库 ID 当成本地目录读取的问题，本地已复现并修复为显式解析固定版本缓存目录。真实处理器的离线加载、原分词规则和四帧 token 对齐验证通过，另有十一项试打标/对照测试通过。继续复用 `.venv-robometer`、缓存及 GPU 0，服务器拉取修复后沿用原输出路径重跑；结果仍只需回传文字。[重跑步骤](verifier_training.md)
+
 新的 Long 对照在保留的同一测试初始状态上比较 base 与 verifier。窗口索引保留实际执行的 1–5 步动作及对应目标帧，短前缀附有五位有效子块 mask。Robometer 全量标签、V-JEPA 2-AC 实际迁移、8D 状态适配、训练加载器中的 mask 处理和训练均待完成。P1 分支机制诊断属于后续阶段。
 
 来源：[官方 benchmark 用法](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/README.md#just-want-the-benchmark)、[suite 注册及 make_env](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/lilo_vla/benchmark/__init__.py)、[复现协议与指标](https://github.com/YY-GX/LiLo-VLA/blob/64aa29d77f5457afb3d1642cfc84534dc1e81fad/docs/REPRODUCTION.md)。
