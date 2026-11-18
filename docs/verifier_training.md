@@ -99,7 +99,7 @@ env -u PYTHONPATH .venv-libero/bin/python -B -m scripts.prepare_verifier_long_da
 
 ## 当前服务器步骤 Robometer 四回合打标
 
-`label_verifier_long_pilot.py` 从训练集中按任务编号选择最先同时包含成功与超时的两个任务，每个任务取初始状态编号最小的一条成功轨迹和一条超时轨迹，共四回合。选择依据固定在运行配置中。试运行用于检查进度标签的方向、数值变化和逐步差分，并测量打标资源开销。
+`label_verifier_long_pilot.py` 从训练集中按任务编号选择最先同时包含成功与超时的两个任务，每个任务取初始状态编号最小的一条成功轨迹和一条超时轨迹，共四回合。选择依据固定在运行配置中。试运行用于检查进度标签的方向、数值变化和逐步差分，并测量打标资源开销。2026-11-18 用户要求停止当前进程并改用 GPU 0。当前运行配置包含 GPU 编号并校验目录内容，因此本次使用 `robometer_pilot_seed7_gpu0` 新目录重新打标四回合，复用现有环境和下载缓存。
 
 当前推理配置采用以下固定值。
 
@@ -108,7 +108,7 @@ env -u PYTHONPATH .venv-libero/bin/python -B -m scripts.prepare_verifier_long_da
 | 模型 | `robometer/Robometer-4B`，权重版本 `beef63bc914c5c189329d49c6d712d96d632aa34` |
 | 官方源码 | `robometer/robometer`，提交 `352d160389daa964788de1ec933d1925f3a6de4f` |
 | 处理器 | `Qwen/Qwen3-VL-4B-Instruct`，版本 `ebb281ec70b05090aa6165b016eac8ec08e71b17` |
-| 推理 | 官方 `RBM` 模型类，标准 Transformers 加载，BF16，SDPA，单进程，GPU 1，batch 8 |
+| 推理 | 官方 `RBM` 模型类，标准 Transformers 加载，BF16，SDPA，单进程，GPU 0，batch 8 |
 | 图像 | MP4 左半边的外部视角，224×224，包含初始帧及终止帧 |
 | 时间上下文 | 对每个控制步 t，使用 `linspace(0,t,4)` 的四帧前缀，取最后一帧预测值 |
 | 标签 | 每个控制步预测一次进度，相邻进度差形成 `Δp`，按窗口执行长度及 mask 对齐 |
@@ -124,8 +124,8 @@ git pull --ff-only origin main &&
 bash scripts/setup_robometer_env.sh &&
 env -u PYTHONPATH .venv-robometer/bin/python -B -m scripts.label_verifier_long_pilot \
   --split-dir outputs/verifier_long/split_seed7 \
-  --output-dir outputs/verifier_long/robometer_pilot_seed7 \
-  --gpu 1 \
+  --output-dir outputs/verifier_long/robometer_pilot_seed7_gpu0 \
+  --gpu 0 \
   --batch-size 8
 ```
 
@@ -135,12 +135,17 @@ env -u PYTHONPATH .venv-robometer/bin/python -B -m scripts.label_verifier_long_p
 
 修复已在本地完成 Python 3.10／Linux x86_64 的 28 项依赖解析，核对全部 NVIDIA 依赖的来源为 PyPI。2026-11-18 收到的服务器日志确认安装及导入成功，版本为 Torch 2.8.0+cu126、Transformers 4.57.2。随后下载 Robometer 权重时出现 SSH `client_loop: send disconnect: Connection reset`，日志显示 3.94 GB 分片已完成，4.97 GB 分片最后显示到 95%。该输出尚不能确认服务器进程是否结束、完整权重是否就绪或打标是否完成。
 
-SSH 重连后执行以下恢复命令。已有打标进程时显示其 PID；进程已退出时用 `nohup` 后台启动，并将输出追加到日志文件。命令复用现有环境、Hugging Face 缓存和同一打标目录。完整缓存文件会直接复用，未完成文件的下载由 Hugging Face 客户端按缓存状态恢复。后台运行用于跨 SSH 断线继续工作。
+SSH 重连后执行以下切换和恢复命令。先向当前用户 GPU 1 上的打标进程发送 SIGTERM 并等待退出，再检查是否已有打标进程，最后用 `nohup` 在 GPU 0 后台启动并追加日志。命令复用现有环境和 Hugging Face 缓存。完整缓存文件会直接复用，未完成文件的下载由 Hugging Face 客户端按缓存状态恢复。后台运行用于跨 SSH 断线继续工作。
 
 ```bash
 (
   set -e
   cd ~/canyon43079/H-JEPA-VerifierVLA
+  old_pilot='[p]ython.*-m scripts[.]label_verifier_long_pilot.*--gpu[[:space:]]+1([[:space:]]|$)'
+  pkill -TERM -u "$(id -u)" -f "$old_pilot" || true
+  while pgrep -u "$(id -u)" -f "$old_pilot" > /dev/null; do
+    sleep 1
+  done
   if pgrep -u "$(id -u)" -af '[p]ython.*-m scripts[.]label_verifier_long_pilot'; then
     printf '%s\n' 'Existing pilot process found. Check its progress before restarting.'
     exit 0
@@ -148,22 +153,22 @@ SSH 重连后执行以下恢复命令。已有打标进程时显示其 PID；进
   mkdir -p outputs/verifier_long
   nohup env -u PYTHONPATH .venv-robometer/bin/python -u -B -m scripts.label_verifier_long_pilot \
     --split-dir outputs/verifier_long/split_seed7 \
-    --output-dir outputs/verifier_long/robometer_pilot_seed7 \
-    --gpu 1 \
+    --output-dir outputs/verifier_long/robometer_pilot_seed7_gpu0 \
+    --gpu 0 \
     --batch-size 8 \
-    >> outputs/verifier_long/robometer_pilot_seed7.log 2>&1 < /dev/null &
-  printf 'Started pilot PID %s\n' "$!"
+    >> outputs/verifier_long/robometer_pilot_seed7_gpu0.log 2>&1 < /dev/null &
+  printf 'Started GPU 0 pilot PID %s\n' "$!"
 )
 ```
 
 通过新命令启动后，可用下面的命令持续查看日志，按 `Ctrl+C` 结束日志查看。打标完成时读取 `summary.json` 并回传。若恢复命令检测到原进程仍在运行，原前台进程的输出可能没有写入这个日志文件，可以先检查汇总是否已生成。
 
 ```bash
-tail -n 60 -f ~/canyon43079/H-JEPA-VerifierVLA/outputs/verifier_long/robometer_pilot_seed7.log
+tail -n 60 -f ~/canyon43079/H-JEPA-VerifierVLA/outputs/verifier_long/robometer_pilot_seed7_gpu0.log
 ```
 
 ```bash
-cat ~/canyon43079/H-JEPA-VerifierVLA/outputs/verifier_long/robometer_pilot_seed7/summary.json
+cat ~/canyon43079/H-JEPA-VerifierVLA/outputs/verifier_long/robometer_pilot_seed7_gpu0/summary.json
 ```
 
 每回合输出 `progress.json`、`window_labels.jsonl`、`progress.png` 与汇总，记录源视频及索引哈希、上下文帧编号、软件与模型版本。完整回合输出统一发布，中断后同一命令会复用已完成的回合。汇总中的 `COMPLETE` 表示打标文件生成完成，`label_quality_status=REVIEW_REQUIRED` 表示需要结合曲线和视频检查语义质量。耗时字段覆盖模型加载后的本轮工作，显存字段为当前进程的 PyTorch 分配／保留峰值。
@@ -178,4 +183,4 @@ cat ~/canyon43079/H-JEPA-VerifierVLA/outputs/verifier_long/robometer_pilot_seed7
 4. 使用可求梯度的前向建立小样本训练检查，再训练 verifier；冻结 π₀.₅ 与视觉编码器，保存数据划分、权重来源、配置及训练日志。
 5. 在 Long 的验证集上检查候选排序并校准双轴触发阈值，最后在保留的测试初始状态上运行同协议闭环对照。
 
-**环境与验证状态。** 八项打标数据与恢复测试、此前十一项数据审计和划分测试均通过。本地另在 Python 3.10／Torch 2.8.0 CPU／Transformers 4.57.2 上，使用固定的真实 Qwen 处理器和随机初始化的小规格官方 RBM，验证图像预处理、特殊 token、前向、保存与重载，词表为 151,674，输入为 `[2,310]`，进度输出为 `[2,4]`，重载缺失参数为 0。曲线输出也已渲染检查。完整 4B 权重加载、GPU 显存、打标速度与语义质量由本轮服务器试运行验证。后续 GPU 工作使用 GPU 1，评测最多两组并行。Verifier 的预训练迁移、8D 状态适配、训练和闭环对照待完成。
+**环境与验证状态。** 八项打标数据与恢复测试、此前十一项数据审计和划分测试均通过。本地另在 Python 3.10／Torch 2.8.0 CPU／Transformers 4.57.2 上，使用固定的真实 Qwen 处理器和随机初始化的小规格官方 RBM，验证图像预处理、特殊 token、前向、保存与重载，词表为 151,674，输入为 `[2,310]`，进度输出为 `[2,4]`，重载缺失参数为 0。曲线输出也已渲染检查。完整 4B 权重加载、GPU 显存、打标速度与语义质量由本轮服务器试运行验证。当前 Robometer 试打标使用 GPU 0，单进程运行。评测最多两组并行。Verifier 的预训练迁移、8D 状态适配、训练和闭环对照待完成。
