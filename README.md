@@ -20,6 +20,7 @@
 
 | 内容 | 入口 |
 | --- | --- |
+| π₀.₅ 的 40 任务 VeriVLA 训练、续训与配对验证 | [训练入口说明](docs/verivla_libero_training.md) |
 | 研究目标、假设与 P0–P5 实验路线 | [长程动作验证实验计划](docs/plan.md) |
 | π₀.₅ 检查点、环境、启动命令与评测协议 | [第一阶段 baseline 复现计划](docs/i_baseline.md) |
 | 统一 uv 模型环境、安装与兼容性验证 | [环境配置](docs/environment.md) |

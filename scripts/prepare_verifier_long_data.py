@@ -23,7 +23,7 @@ def sha256_file(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def assign_splits(rows, split_seed):
+def assign_splits(rows, split_seed, suite="libero_10"):
     """Assign whole (suite, task, initial-state) groups without consulting outcomes."""
     groups = defaultdict(set)
     for row in rows:
@@ -36,7 +36,7 @@ def assign_splits(rows, split_seed):
     for task in sorted(groups):
         require(groups[task] == set(range(50)), "Each included task must contain initial states 0..49")
         def order_key(initial):
-            identity = "libero_10|{}|{}|{}".format(split_seed, task, initial)
+            identity = "{}|{}|{}|{}".format(suite, split_seed, task, initial)
             return hashlib.sha256(identity.encode("utf-8")).digest(), initial
         ordered = sorted(groups[task], key=order_key)
         start = 0
@@ -47,7 +47,7 @@ def assign_splits(rows, split_seed):
     return assignment
 
 
-def index_episode(run_dir, row, split):
+def index_episode(run_dir, row, split, suite="libero_10"):
     directory = (run_dir / row["artifacts"]).resolve()
     result_path = directory / "result.json"
     saved = json.loads(result_path.read_text(encoding="utf-8"))
@@ -58,7 +58,8 @@ def index_episode(run_dir, row, split):
     require(bool(decisions) and len(decisions) == row["policy_requests"], "Decision count differs from episode")
     video_path = directory / "video.mp4"
     require(video_path.is_file(), "Missing video: " + str(video_path))
-    episode_id = "libero_10_task{:02d}_init{:02d}".format(row["task_id"], row["init_state_id"])
+    require(saved.get("suite", suite) == suite and row.get("suite", suite) == suite, "Episode suite differs")
+    episode_id = "{}_task{:02d}_init{:02d}".format(suite, row["task_id"], row["init_state_id"])
     windows, observation_paths = [], set()
     position, prompt = 0, None
     for decision_index, decision in enumerate(decisions):
@@ -79,7 +80,7 @@ def index_episode(run_dir, row, split):
             if row.get("task_description") is not None:
                 require(prompt == row["task_description"], "Task instruction differs from final index")
         windows.append(dict(
-            episode_id=episode_id, suite="libero_10", task_id=row["task_id"],
+            episode_id=episode_id, suite=suite, task_id=row["task_id"],
             init_state_id=row["init_state_id"], split=split, decision_index=decision_index,
             policy_step=position, executed_steps=count, observation=str(observation_path),
             video=str(video_path), context_frame_index=position,
@@ -88,7 +89,7 @@ def index_episode(run_dir, row, split):
         position += count
     require(position == row["policy_steps"], "Executed prefixes do not sum to episode policy_steps")
     episode = dict(
-        episode_id=episode_id, suite="libero_10", task_id=row["task_id"],
+        episode_id=episode_id, suite=suite, task_id=row["task_id"],
         init_state_id=row["init_state_id"], split=split, outcome=row["outcome"], prompt=prompt,
         artifacts=str(directory), video=str(video_path), policy_steps=position,
         policy_requests=len(windows), retained_artifacts=run_dir not in directory.parents,
@@ -135,7 +136,8 @@ def prepare_dataset(run_dir, output_dir, split_seed=7):
     config = json.loads((run_dir / "run_config.json").read_text(encoding="utf-8"))
     summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
     rows = read_rows(run_dir / "episodes.jsonl")
-    require(config["suite"] == "libero_10", "This preparation step uses LIBERO-Long")
+    suite = config["suite"]
+    require(suite in ("libero_10", "libero_spatial", "libero_object", "libero_goal"), "Unknown LIBERO suite")
     require(summary["status"] == "PASS", "Use a completed final run")
     require(len(rows) == summary["planned_episodes"] == summary["recorded_episodes"] == summary["valid_episodes"],
             "Incomplete final episode index")
@@ -143,13 +145,13 @@ def prepare_dataset(run_dir, output_dir, split_seed=7):
             "Expected valid Long success/timeout episodes")
     require(config["trials_per_task"] == 50, "Expected 50 initial states per task")
     require(set(row["task_id"] for row in rows) == set(config["task_ids"]), "Task IDs differ from run_config")
-    assignment = assign_splits(rows, split_seed)
+    assignment = assign_splits(rows, split_seed, suite)
     episodes = {split: [] for split in SPLIT_COUNTS}
     windows = {split: [] for split in SPLIT_COUNTS}
     artifact_dirs = set()
     for row in sorted(rows, key=lambda item: (item["task_id"], item["init_state_id"])):
         split = assignment[(row["task_id"], row["init_state_id"])]
-        episode, episode_windows = index_episode(run_dir, row, split)
+        episode, episode_windows = index_episode(run_dir, row, split, suite)
         require(episode["artifacts"] not in artifact_dirs, "Duplicate source artifact directory in final index")
         artifact_dirs.add(episode["artifacts"])
         episodes[split].append(episode)
@@ -173,9 +175,9 @@ def prepare_dataset(run_dir, output_dir, split_seed=7):
                 [window for window in windows[split] if window["task_id"] == task])))
         split_reports[split] = dict(files=file_names, per_task=per_task, **summarize(episodes[split], windows[split]))
     manifest = dict(
-        schema="verifier_long_split_v1", status="COMPLETE", suite="libero_10",
+        schema="verifier_long_split_v1", status="COMPLETE", suite=suite,
         run_dir=str(run_dir), output_dir=str(output_dir), split_seed=split_seed,
-        split_method="Per-task SHA256 order of libero_10|split_seed|task_id|init_state_id; 40/5/5 groups",
+        split_method="Per-task SHA256 order of " + suite + "|split_seed|task_id|init_state_id; 40/5/5 groups",
         split_group_key=["suite", "task_id", "init_state_id"], groups_per_task=SPLIT_COUNTS,
         split_seed_scope="Data partition only", task_count=len(config["task_ids"]),
         retained_artifact_episodes=sum(ep["retained_artifacts"] for ep in all_episodes),

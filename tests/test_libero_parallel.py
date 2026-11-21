@@ -337,6 +337,15 @@ class LiberoParallelTest(unittest.TestCase):
             self.assertEqual(summary["interrupted_episodes"], 0)
         self.assertTrue(all(process.returncode is not None for process in processes.processes))
 
+    def test_collection_without_host_cgroup_counters(self):
+        processes = SimulatedProcesses()
+        processes.resources = mock.Mock(side_effect=FileNotFoundError("/sys/fs/cgroup/memory.current"))
+        with mock.patch.dict(os.environ, {"B5_SCHEDULER_ALLOCATED": "0"}), \
+                self.run_controller(processes, ["--task-ids", "0", "--trials-per-task", "1"]) as (status, directory):
+            self.assertEqual(status, 0)
+            cfg = json.loads((directory / "run_config.json").read_text())
+            self.assertIn("unavailable", cfg["initial_resources"])
+
     def test_cgroup_is_read_once_for_preflight(self):
         processes = SimulatedProcesses()
         resources = processes.resources()
